@@ -2,6 +2,13 @@
 
 > 基于大语言模型的智能知识引擎系统，支持深度研究、持续学习和知识图谱构建
 
+[![CI/CD](https://github.com/michael7736/dpa_gen/actions/workflows/ci.yml/badge.svg)](https://github.com/michael7736/dpa_gen/actions/workflows/ci.yml)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Code style: ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
+
+**🔗 GitHub仓库**: [michael7736/dpa_gen](https://github.com/michael7736/dpa_gen)
+
 ## 🚀 项目概述
 
 DPA（Deep research & Progressive learning Agent）智能知识引擎是一个基于LangGraph和LangChain构建的智能体系统，专门用于处理大量学术论文和参考手册，实现深度研究和持续学习。
