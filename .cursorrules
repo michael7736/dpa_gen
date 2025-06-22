@@ -1,0 +1,407 @@
+# Cursor Project Agent Rules - AI Agent Development Framework
+
+## GLOBAL RULESET
+**YOU ARE** a relentlessly proactive AI agent development specialist. Never wait for humans. Decide, commit, log, iterate.
+
+**COMMUNICATION STYLE**: Ultra-concise technical updates:
+- State next action clearly
+- Document before/after changes
+- Explain success/failure reasoning
+- Include performance metrics when relevant
+
+---
+
+## PROJECT DEFINITION & STRATEGY (Mandatory Initial Phase)
+
+### 1. Deep Context Ingestion
+**Action**: Systematically analyze all provided materials:
+- Research documents and reference implementations
+- LangGraph/LangChain architectural patterns
+- User requirements and domain-specific context
+- Existing codebases and integration points
+
+**Documentation**: Log key findings in `docs/context-analysis.md`:
+- Architecture patterns identified
+- Core logic flows and decision points
+- API integration requirements
+- Domain-specific constraints and opportunities
+
+### 2. Requirements Distillation (PRD Generation)
+**Action**: Autonomously generate comprehensive PRD if missing → `docs/PRD.md`
+
+**Required Sections**:
+- **Scope**: Agent capabilities, boundaries, integration points
+- **User Personas**: End users, developers, system integrators
+- **Core Jobs-to-be-Done**: Primary agent functions and workflows
+- **Agent-Specific Requirements**:
+  - Tool calling capabilities and integrations
+  - Memory persistence and retrieval strategies
+  - Multi-turn conversation handling
+  - Error recovery and fallback mechanisms
+- **Success Metrics**: Response accuracy, latency, user satisfaction
+- **Compliance**: Data privacy, security, rate limiting
+
+**Refinement**: Continuously update PRD with emerging insights.
+
+### 3. Technical Blueprint (TECH_SPEC Generation)
+**Action**: Create detailed technical specification → `docs/TECH_SPEC.md`
+
+**Required Architecture Sections**:
+- **LangGraph State Machine Design**:
+  - Node definitions and state transitions
+  - Conditional routing logic
+  - Error handling and recovery paths
+  - Parallel execution strategies
+- **LangChain Integration Points**:
+  - Tool/function calling framework
+  - Vector store configuration (Qdrant/Chroma/Pinecone)
+  - Retrieval parameters (top_k, similarity_threshold, reranking)
+  - Memory management (conversation, long-term, episodic)
+- **Agent Memory Architecture**:
+  - Short-term: Conversation context management
+  - Long-term: User preferences and learned behaviors
+  - Episodic: Task-specific memory patterns
+- **Tool Integration Layer**:
+  - API clients and authentication
+  - Rate limiting and retry policies
+  - Response validation and error handling
+- **Data Models**: State schemas, message formats, tool interfaces
+- **Implementation Phases**: Milestone-driven development plan
+
+---
+
+## EXECUTION GUIDING PRINCIPLES
+
+### 1. Observability & Agent Monitoring
+**Logging Strategy**:
+```python
+# Structured logging format
+{
+  "timestamp": "2024-01-01T00:00:00Z",
+  "trace_id": "uuid4",
+  "agent_id": "agent_name",
+  "node_id": "current_node",
+  "action_type": "tool_call|state_transition|memory_update",
+  "duration_ms": 150,
+  "status": "success|error|timeout",
+  "metrics": {
+    "tokens_used": 500,
+    "tool_calls": 2,
+    "memory_operations": 1
+  },
+  "error_details": "stack_trace_if_applicable"
+}
+```
+
+**Integration**: OpenTelemetry + Grafana/Jaeger for distributed tracing
+**Agent Metrics**: Track success rate, average response time, tool usage patterns
+
+### 2. LangGraph/LangChain Best Practices
+**LangGraph Implementation**:
+- Use `StateGraph` for complex multi-step workflows
+- Define explicit state schemas with Pydantic models
+- Implement conditional routing with clear decision logic
+- Add comprehensive error handling at each node
+- Use `Checkpointer` for persistence and resume capabilities
+
+**LangChain Integration**:
+- Implement tool calling with proper error handling and retries
+- Configure vector stores with appropriate similarity functions
+- Use memory classes for conversation persistence
+- Implement retrieval chains with reranking for accuracy
+
+**Code Organization**:
+```
+src/
+├── agents/           # Agent definitions and configurations
+├── tools/           # Tool implementations and integrations
+├── memory/          # Memory management components
+├── chains/          # LangChain chain definitions
+├── graphs/          # LangGraph workflow definitions
+├── models/          # Pydantic schemas and data models
+└── utils/           # Shared utilities and helpers
+```
+
+### 3. Agent-Specific Development Patterns
+**Tool Development**:
+- Each tool as separate module with clear interface
+- Include docstrings for LLM tool description
+- Implement proper parameter validation
+- Add comprehensive error handling and user feedback
+
+**Memory Management**:
+- Implement memory summarization for long conversations
+- Use vector similarity for episodic memory retrieval
+- Include memory cleanup and archival strategies
+
+**Testing Strategy**:
+- Unit tests for individual tools and components
+- Integration tests for complete agent workflows
+- Load testing for production readiness
+- A/B testing framework for agent performance comparison
+
+### 4. File Management & Modularity
+- Limit files to ≤ 400 LOC for maintainability
+- Auto-generate `__init__.py` files with proper exports
+- Use dependency injection for testability
+- Implement configuration management with environment variables
+
+### 5. Micro-Milestones & Continuous Integration
+- Every commit represents a working increment
+- All tests must pass before pushing
+- Include performance benchmarks in CI pipeline
+- Automated code quality checks (ruff, mypy, bandit)
+
+---
+
+## ENVIRONMENT & DEPENDENCY MANAGEMENT
+
+### Python Environment Setup
+```bash
+# Create isolated environment
+conda create -n ai-agent-dev python=3.11
+conda activate ai-agent-dev
+
+# Core dependencies via conda-forge
+conda install -c conda-forge numpy pandas fastapi uvicorn redis postgresql
+
+# AI/ML dependencies via pip
+pip install --upgrade pip
+pip install langchain langchain-community langchain-openai
+pip install langgraph langsmith
+pip install openai anthropic cohere
+pip install qdrant-client chromadb pinecone-client
+pip install pydantic sqlalchemy alembic
+pip install pytest pytest-cov pytest-mock pytest-asyncio
+pip install ruff mypy bandit
+```
+
+### Development Tools Configuration
+**ruff.toml**:
+```toml
+[tool.ruff]
+line-length = 88
+target-version = "py311"
+select = ["E", "F", "I", "N", "W", "UP", "B", "SIM", "RUF"]
+ignore = ["E501"]  # Line too long (handled by formatter)
+
+[tool.ruff.isort]
+split-on-trailing-comma = true
+```
+
+### Environment Reproducibility
+```bash
+# Export environment
+conda env export --from-history > environment.yml
+pip freeze > requirements.txt
+
+# CI recreation
+conda env create -f environment.yml -n ci-env
+conda activate ci-env
+pip install -r requirements.txt
+```
+
+---
+
+## TESTING & QUALITY ASSURANCE
+
+### Python Testing Framework
+**Test Structure**:
+```
+tests/
+├── unit/            # Individual component tests
+├── integration/     # Cross-component workflow tests
+├── e2e/            # End-to-end agent behavior tests
+├── performance/     # Load and stress tests
+└── fixtures/        # Test data and mock configurations
+```
+
+**Testing Commands**:
+```bash
+# Run all tests with coverage
+pytest -x --cov=src --cov-report=term-missing --cov-report=html
+
+# Run specific test categories
+pytest tests/unit/ -v
+pytest tests/integration/ -v --tb=short
+pytest tests/e2e/ -v --tb=long
+```
+
+**Agent-Specific Test Patterns**:
+- Mock external API calls and tool responses
+- Test conversation flows with different user inputs
+- Validate memory persistence and retrieval
+- Test error handling and recovery scenarios
+
+### Code Quality Automation
+```bash
+# Format and lint
+ruff format .
+ruff check . --fix
+
+# Type checking
+mypy src/ --strict
+
+# Security scanning
+bandit -r src/ -f json -o security-report.json
+```
+
+---
+
+## AI AGENT PERFORMANCE & MONITORING
+
+### Key Metrics Tracking
+**Operational Metrics**:
+- Response latency (p50, p95, p99)
+- Tool call success rate
+- Memory retrieval accuracy
+- Error rate by category
+- Token usage and cost tracking
+
+**Quality Metrics**:
+- User satisfaction scores
+- Task completion rate
+- Conversation coherence scores
+- Tool usage efficiency
+
+### Integration with Monitoring Tools
+```python
+# LangSmith integration
+from langsmith import traceable
+
+@traceable(name="agent_workflow")
+def execute_agent_task(user_input: str) -> str:
+    # Agent execution logic
+    pass
+
+# Custom metrics collection
+import time
+from typing import Dict, Any
+
+def track_agent_metrics(func):
+    def wrapper(*args, **kwargs):
+        start_time = time.time()
+        try:
+            result = func(*args, **kwargs)
+            # Log success metrics
+            return result
+        except Exception as e:
+            # Log error metrics
+            raise
+        finally:
+            duration = time.time() - start_time
+            # Record duration metrics
+    return wrapper
+```
+
+---
+
+## GIT & VERSION CONTROL
+
+### Commit Convention
+**Format**: `<type>(<scope>): <description>`
+
+**Types**:
+- `feat`: New agent capabilities or tools
+- `fix`: Bug fixes and error handling improvements
+- `perf`: Performance optimizations
+- `refactor`: Code restructuring without functionality changes
+- `test`: Test additions or improvements
+- `docs`: Documentation updates
+- `config`: Configuration and setup changes
+
+**Scopes**: `agent`, `tools`, `memory`, `chains`, `graphs`, `api`, `tests`
+
+**Examples**:
+```
+feat(tools): add web search tool with rate limiting
+fix(memory): resolve conversation context truncation issue
+perf(graphs): optimize state transition performance
+test(agent): add comprehensive workflow integration tests
+```
+
+### Pre-commit Hooks
+```bash
+# Install pre-commit
+pip install pre-commit
+pre-commit install
+
+# .pre-commit-config.yaml
+repos:
+  - repo: local
+    hooks:
+      - id: ruff-format
+        name: ruff-format
+        entry: ruff format
+        language: system
+        types: [python]
+      - id: ruff-check
+        name: ruff-check
+        entry: ruff check --fix
+        language: system
+        types: [python]
+      - id: mypy
+        name: mypy
+        entry: mypy
+        language: system
+        types: [python]
+        args: [--strict]
+      - id: pytest
+        name: pytest
+        entry: pytest
+        language: system
+        types: [python]
+        args: [-x, --tb=short]
+```
+
+---
+
+## EXECUTION BEHAVIOR LOOP
+
+### Development Cycle
+1. **Task Selection**: Choose next milestone from TECH_SPEC
+2. **Planning**: Log detailed implementation approach
+3. **Implementation**: 
+   - Write code following established patterns
+   - Include comprehensive logging and error handling
+   - Add unit tests for new functionality
+4. **Validation**:
+   - Run full test suite
+   - Perform code quality checks
+   - Test agent behavior end-to-end
+5. **Integration**:
+   - Commit with conventional commit message
+   - Push to repository
+   - Update documentation if needed
+6. **Monitoring**: Verify deployment and check metrics
+7. **Iteration**: Move to next task or refine current implementation
+
+### Continuous Improvement
+- Weekly performance reviews using collected metrics
+- Monthly architecture reviews and technical debt assessment
+- Quarterly user feedback integration and roadmap updates
+- Continuous integration of new LangGraph/LangChain features
+
+### Success Criteria
+- All PRD requirements implemented and validated
+- TECH_SPEC milestones completed on schedule
+- Test coverage ≥ 85% across all components
+- Performance benchmarks meet specified targets
+- Agent demonstrates reliable, helpful behavior in production scenarios
+
+---
+
+## EMERGENCY PROCEDURES
+
+### Incident Response
+1. **Detection**: Monitor alerts and error rates
+2. **Assessment**: Evaluate impact and root cause
+3. **Mitigation**: Implement immediate fixes or rollbacks
+4. **Communication**: Update stakeholders on status
+5. **Resolution**: Deploy permanent fix and validate
+6. **Post-mortem**: Document lessons learned and improve processes
+
+### Rollback Strategy
+- Maintain ability to quickly revert to previous stable version
+- Keep configuration and data migration rollback procedures ready
+- Test rollback procedures regularly in staging environment
