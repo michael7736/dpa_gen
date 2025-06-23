@@ -1,23 +1,30 @@
 """
-基于LangGraph的文档处理智能体
-实现文档解析、分块、向量化和知识图谱构建的完整工作流
+文档处理智能体
+负责文档的解析、分块、向量化和索引
 """
 
 import asyncio
-import json
-from typing import Dict, Any, List, Optional, TypedDict
-from uuid import UUID, uuid4
+import logging
 from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, List, Optional, TypedDict, Union
+from uuid import uuid4
 
-from langgraph import StateGraph, END
-from langchain_core.documents import Document
-from langchain_community.document_loaders import PyPDFLoader, UnstructuredWordDocumentLoader
-from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain_experimental.text_splitter import SemanticChunker
-from langchain_openai import OpenAIEmbeddings
+from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
+from langchain_core.runnables import RunnableConfig
+from langgraph.graph import StateGraph, END
+from langgraph.checkpoint.memory import MemorySaver
+from pydantic import BaseModel, Field
 
 from ..config.settings import get_settings
-from ..core.knowledge_index import KnowledgeIndexer
+from ..core.chunking import DocumentChunker, ChunkingStrategy
+from ..core.vectorization import VectorStore
+from ..core.knowledge_index import KnowledgeIndex
+from ..database.qdrant_client import QdrantClient
+from ..models.document import Document, DocumentType, ProcessingStatus, DocumentChunk
+from ..models.project import Project
+from ..services.document_parser import parse_document, DocumentContent
+from ..services.file_storage import FileStorageService
 from ..utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -29,600 +36,561 @@ class DocumentProcessingState(TypedDict):
     # 输入信息
     project_id: str
     document_id: str
-    document_path: str
-    document_type: str
-    processing_config: Dict[str, Any]
+    file_path: str
+    file_name: str
+    processing_options: Dict[str, Any]
     
-    # 处理过程数据
-    raw_content: Optional[str]
-    parsed_content: Optional[Dict[str, Any]]
-    document_structure: Optional[Dict[str, Any]]
-    chunks: Optional[List[Dict[str, Any]]]
-    embeddings: Optional[List[List[float]]]
-    entities: Optional[List[Dict[str, Any]]]
-    knowledge_graph: Optional[Dict[str, Any]]
-    
-    # 状态和结果
-    processing_status: str
+    # 处理过程状态
     current_step: str
+    progress: float
+    status: ProcessingStatus
     error_message: Optional[str]
-    warnings: List[str]
-    processing_time: float
-    result: Optional[Dict[str, Any]]
+    
+    # 处理结果
+    parsed_content: Optional[DocumentContent]
+    chunks: List[DocumentChunk]
+    embeddings: List[List[float]]
+    indexed: bool
+    
+    # 元数据
+    processing_start_time: datetime
+    processing_end_time: Optional[datetime]
+    processing_duration: Optional[float]
+    
+    # 消息历史
+    messages: List[BaseMessage]
+
+
+class DocumentProcessingConfig(BaseModel):
+    """文档处理配置"""
+    chunking_strategy: ChunkingStrategy = ChunkingStrategy.SEMANTIC
+    chunk_size: int = Field(default=1000, ge=100, le=4000)
+    chunk_overlap: int = Field(default=200, ge=0, le=1000)
+    enable_ocr: bool = False
+    extract_tables: bool = True
+    extract_images: bool = True
+    enable_summarization: bool = True
+    quality_threshold: float = Field(default=0.8, ge=0.0, le=1.0)
 
 
 class DocumentProcessingAgent:
-    """基于LangGraph的文档处理智能体"""
+    """文档处理智能体"""
     
     def __init__(self):
-        self.knowledge_indexer = KnowledgeIndexer()
-        self.embeddings = OpenAIEmbeddings(
-            model=settings.ai_model.default_embedding_model,
-            dimensions=settings.ai_model.embedding_dimension
-        )
-        self.graph = self._build_workflow()
+        self.logger = get_logger(__name__)
+        self.file_storage = FileStorageService()
+        self.chunker = DocumentChunker()
+        self.vector_store = VectorStore()
+        self.knowledge_index = KnowledgeIndex()
+        self.qdrant_client = QdrantClient()
         
-    def _build_workflow(self) -> StateGraph:
-        """构建文档处理工作流"""
-        workflow = StateGraph(DocumentProcessingState)
+        # 构建状态图
+        self.graph = self._build_graph()
         
-        # 添加处理节点
-        workflow.add_node("parse_document", self.parse_document)
-        workflow.add_node("extract_structure", self.extract_structure)
-        workflow.add_node("semantic_chunking", self.semantic_chunking)
-        workflow.add_node("generate_embeddings", self.generate_embeddings)
-        workflow.add_node("extract_entities", self.extract_entities)
-        workflow.add_node("build_knowledge_graph", self.build_knowledge_graph)
-        workflow.add_node("index_to_vector_db", self.index_to_vector_db)
-        workflow.add_node("finalize_processing", self.finalize_processing)
-        workflow.add_node("handle_error", self.handle_error)
+        # 设置检查点
+        self.checkpointer = MemorySaver()
+        self.compiled_graph = self.graph.compile(checkpointer=self.checkpointer)
+    
+    def _build_graph(self) -> StateGraph:
+        """构建文档处理状态图"""
+        graph = StateGraph(DocumentProcessingState)
         
-        # 定义工作流路径
-        workflow.set_entry_point("parse_document")
+        # 添加节点
+        graph.add_node("initialize", self._initialize_processing)
+        graph.add_node("parse_document", self._parse_document)
+        graph.add_node("validate_content", self._validate_content)
+        graph.add_node("chunk_content", self._chunk_content)
+        graph.add_node("generate_embeddings", self._generate_embeddings)
+        graph.add_node("index_content", self._index_content)
+        graph.add_node("finalize", self._finalize_processing)
+        graph.add_node("handle_error", self._handle_error)
         
-        # 条件路由
-        workflow.add_conditional_edges(
+        # 设置入口点
+        graph.set_entry_point("initialize")
+        
+        # 添加边
+        graph.add_edge("initialize", "parse_document")
+        
+        # 条件路由：解析后的验证
+        graph.add_conditional_edges(
             "parse_document",
-            self._should_continue_after_parsing,
+            self._should_validate_content,
             {
-                "continue": "extract_structure",
+                "validate": "validate_content",
                 "error": "handle_error"
             }
         )
         
-        workflow.add_conditional_edges(
-            "extract_structure",
-            self._should_continue_after_structure,
+        # 条件路由：内容验证后
+        graph.add_conditional_edges(
+            "validate_content",
+            self._should_proceed_to_chunking,
             {
-                "continue": "semantic_chunking",
+                "chunk": "chunk_content",
                 "error": "handle_error"
             }
         )
         
-        workflow.add_conditional_edges(
-            "semantic_chunking",
-            self._should_continue_after_chunking,
+        graph.add_edge("chunk_content", "generate_embeddings")
+        
+        # 条件路由：嵌入生成后
+        graph.add_conditional_edges(
+            "generate_embeddings",
+            self._should_index_content,
             {
-                "continue": "generate_embeddings",
+                "index": "index_content",
                 "error": "handle_error"
             }
         )
         
-        workflow.add_edge("generate_embeddings", "extract_entities")
-        workflow.add_edge("extract_entities", "build_knowledge_graph")
-        workflow.add_edge("build_knowledge_graph", "index_to_vector_db")
-        workflow.add_edge("index_to_vector_db", "finalize_processing")
-        workflow.add_edge("finalize_processing", END)
-        workflow.add_edge("handle_error", END)
+        graph.add_edge("index_content", "finalize")
+        graph.add_edge("finalize", END)
+        graph.add_edge("handle_error", END)
         
-        return workflow.compile()
-    
-    def _should_continue_after_parsing(self, state: DocumentProcessingState) -> str:
-        """解析后的条件判断"""
-        if state["processing_status"] == "error":
-            return "error"
-        if not state.get("raw_content"):
-            return "error"
-        return "continue"
-    
-    def _should_continue_after_structure(self, state: DocumentProcessingState) -> str:
-        """结构提取后的条件判断"""
-        if state["processing_status"] == "error":
-            return "error"
-        return "continue"
-    
-    def _should_continue_after_chunking(self, state: DocumentProcessingState) -> str:
-        """分块后的条件判断"""
-        if state["processing_status"] == "error":
-            return "error"
-        if not state.get("chunks") or len(state["chunks"]) == 0:
-            return "error"
-        return "continue"
-    
-    async def parse_document(self, state: DocumentProcessingState) -> DocumentProcessingState:
-        """解析文档"""
-        start_time = datetime.utcnow()
-        state["current_step"] = "parse_document"
-        
-        try:
-            logger.info(f"开始解析文档: {state['document_path']}")
-            
-            # 根据文件类型选择合适的加载器
-            if state["document_path"].endswith('.pdf'):
-                loader = PyPDFLoader(state["document_path"])
-            elif state["document_path"].endswith(('.docx', '.doc')):
-                loader = UnstructuredWordDocumentLoader(state["document_path"])
-            elif state["document_path"].endswith(('.txt', '.md')):
-                with open(state["document_path"], 'r', encoding='utf-8') as f:
-                    content = f.read()
-                state["raw_content"] = content
-                state["processing_status"] = "parsed"
-                logger.info(f"成功解析文本文档: {len(content)} 个字符")
-                return state
-            else:
-                raise ValueError(f"不支持的文档类型: {state['document_path']}")
-            
-            # 加载文档
-            documents = await loader.aload()
-            raw_content = "\n".join([doc.page_content for doc in documents])
-            
-            # 提取基本元数据
-            parsed_content = {
-                "total_pages": len(documents),
-                "total_chars": len(raw_content),
-                "documents": [
-                    {
-                        "page_content": doc.page_content,
-                        "metadata": doc.metadata
-                    }
-                    for doc in documents
-                ]
-            }
-            
-            state["raw_content"] = raw_content
-            state["parsed_content"] = parsed_content
-            state["processing_status"] = "parsed"
-            
-            processing_time = (datetime.utcnow() - start_time).total_seconds()
-            logger.info(f"文档解析完成: {len(raw_content)} 个字符, 耗时 {processing_time:.2f}s")
-            
-        except Exception as e:
-            state["error_message"] = f"文档解析失败: {str(e)}"
-            state["processing_status"] = "error"
-            logger.error(f"文档解析失败: {e}")
-            
-        return state
-    
-    async def extract_structure(self, state: DocumentProcessingState) -> DocumentProcessingState:
-        """提取文档结构"""
-        state["current_step"] = "extract_structure"
-        
-        try:
-            logger.info("开始提取文档结构")
-            
-            content = state["raw_content"]
-            parsed_content = state.get("parsed_content", {})
-            
-            # 简化的结构提取（可以根据需要扩展）
-            structure = {
-                "title": self._extract_title(content),
-                "sections": self._extract_sections(content),
-                "document_type": state["document_type"],
-                "total_pages": parsed_content.get("total_pages", 0),
-                "total_chars": len(content),
-                "language": "zh"  # 可以通过语言检测改进
-            }
-            
-            state["document_structure"] = structure
-            state["processing_status"] = "structured"
-            
-            logger.info(f"结构提取完成: {len(structure['sections'])} 个章节")
-            
-        except Exception as e:
-            state["error_message"] = f"结构提取失败: {str(e)}"
-            state["processing_status"] = "error"
-            logger.error(f"结构提取失败: {e}")
-            
-        return state
-    
-    async def semantic_chunking(self, state: DocumentProcessingState) -> DocumentProcessingState:
-        """语义分块"""
-        state["current_step"] = "semantic_chunking"
-        
-        try:
-            logger.info("开始语义分块")
-            
-            content = state["raw_content"]
-            config = state.get("processing_config", {})
-            
-            # 获取分块配置
-            chunk_size = config.get("chunk_size", 1000)
-            chunk_overlap = config.get("chunk_overlap", 200)
-            use_semantic_chunking = config.get("use_semantic_chunking", True)
-            
-            if use_semantic_chunking and len(content) > 500:
-                # 使用语义分块器
-                text_splitter = SemanticChunker(
-                    embeddings=self.embeddings,
-                    breakpoint_threshold_type="percentile",
-                    breakpoint_threshold_amount=80
-                )
-            else:
-                # 使用递归字符分块器
-                text_splitter = RecursiveCharacterTextSplitter(
-                    chunk_size=chunk_size,
-                    chunk_overlap=chunk_overlap,
-                    separators=["\n\n", "\n", "。", "!", "?", ";", "；", "？", "！"]
-                )
-            
-            # 执行分块
-            chunks_docs = text_splitter.create_documents([content])
-            
-            # 构建块数据
-            chunks = []
-            for i, chunk_doc in enumerate(chunks_docs):
-                chunk_data = {
-                    "id": str(uuid4()),
-                    "content": chunk_doc.page_content,
-                    "chunk_index": i,
-                    "chunk_type": "paragraph",  # 可以根据内容类型改进
-                    "word_count": len(chunk_doc.page_content),
-                    "char_start": None,  # 可以通过内容匹配计算
-                    "char_end": None,
-                    "page_number": None,  # 可以通过解析结果计算
-                    "section_id": None,  # 后续关联章节
-                    "keywords": [],  # 后续提取
-                    "entities": [],  # 后续提取
-                    "metadata": chunk_doc.metadata
-                }
-                chunks.append(chunk_data)
-            
-            state["chunks"] = chunks
-            state["processing_status"] = "chunked"
-            
-            logger.info(f"语义分块完成: {len(chunks)} 个块")
-            
-        except Exception as e:
-            state["error_message"] = f"语义分块失败: {str(e)}"
-            state["processing_status"] = "error"
-            logger.error(f"语义分块失败: {e}")
-            
-        return state
-    
-    async def generate_embeddings(self, state: DocumentProcessingState) -> DocumentProcessingState:
-        """生成嵌入向量"""
-        state["current_step"] = "generate_embeddings"
-        
-        try:
-            logger.info("开始生成嵌入向量")
-            
-            chunks = state["chunks"]
-            texts = [chunk["content"] for chunk in chunks]
-            
-            # 批量生成嵌入向量
-            embeddings = await self.embeddings.aembed_documents(texts)
-            
-            # 将嵌入向量添加到块数据中
-            for i, chunk in enumerate(chunks):
-                chunk["embedding_vector"] = embeddings[i]
-                chunk["embedding_model"] = settings.ai_model.default_embedding_model
-            
-            state["embeddings"] = embeddings
-            state["processing_status"] = "embedded"
-            
-            logger.info(f"嵌入向量生成完成: {len(embeddings)} 个向量")
-            
-        except Exception as e:
-            state["error_message"] = f"嵌入向量生成失败: {str(e)}"
-            state["processing_status"] = "error"
-            logger.error(f"嵌入向量生成失败: {e}")
-            
-        return state
-    
-    async def extract_entities(self, state: DocumentProcessingState) -> DocumentProcessingState:
-        """提取实体"""
-        state["current_step"] = "extract_entities"
-        
-        try:
-            logger.info("开始提取实体")
-            
-            chunks = state["chunks"]
-            
-            # 简化的实体提取（可以集成NER模型）
-            all_entities = []
-            
-            for chunk in chunks:
-                entities = self._extract_simple_entities(chunk["content"])
-                chunk["entities"] = entities
-                all_entities.extend(entities)
-            
-            state["entities"] = all_entities
-            state["processing_status"] = "entities_extracted"
-            
-            logger.info(f"实体提取完成: {len(all_entities)} 个实体")
-            
-        except Exception as e:
-            state["error_message"] = f"实体提取失败: {str(e)}"
-            state["processing_status"] = "error"
-            logger.error(f"实体提取失败: {e}")
-            
-        return state
-    
-    async def build_knowledge_graph(self, state: DocumentProcessingState) -> DocumentProcessingState:
-        """构建知识图谱"""
-        state["current_step"] = "build_knowledge_graph"
-        
-        try:
-            logger.info("开始构建知识图谱")
-            
-            project_id = UUID(state["project_id"])
-            document_id = UUID(state["document_id"])
-            chunks = state["chunks"]
-            document_structure = state["document_structure"]
-            
-            # 使用知识索引器构建图谱
-            graph_result = await self.knowledge_indexer.build_knowledge_graph(
-                project_id=project_id,
-                document_id=document_id,
-                chunks=chunks,
-                document_structure=document_structure
-            )
-            
-            state["knowledge_graph"] = graph_result
-            state["processing_status"] = "graph_built"
-            
-            logger.info(f"知识图谱构建完成: {graph_result}")
-            
-        except Exception as e:
-            state["error_message"] = f"知识图谱构建失败: {str(e)}"
-            state["processing_status"] = "error"
-            logger.error(f"知识图谱构建失败: {e}")
-            
-        return state
-    
-    async def index_to_vector_db(self, state: DocumentProcessingState) -> DocumentProcessingState:
-        """索引到向量数据库"""
-        state["current_step"] = "index_to_vector_db"
-        
-        try:
-            logger.info("开始索引到向量数据库")
-            
-            project_id = UUID(state["project_id"])
-            document_id = UUID(state["document_id"])
-            chunks = state["chunks"]
-            
-            # 使用知识索引器进行向量索引
-            index_result = await self.knowledge_indexer.index_document_chunks(
-                project_id=project_id,
-                document_id=document_id,
-                chunks=chunks
-            )
-            
-            state["processing_status"] = "indexed"
-            
-            logger.info(f"向量索引完成: {index_result}")
-            
-        except Exception as e:
-            state["error_message"] = f"向量索引失败: {str(e)}"
-            state["processing_status"] = "error"
-            logger.error(f"向量索引失败: {e}")
-            
-        return state
-    
-    async def finalize_processing(self, state: DocumentProcessingState) -> DocumentProcessingState:
-        """完成处理"""
-        state["current_step"] = "finalize_processing"
-        
-        try:
-            # 构建最终结果
-            result = {
-                "document_id": state["document_id"],
-                "project_id": state["project_id"],
-                "processing_status": "completed",
-                "total_chunks": len(state.get("chunks", [])),
-                "total_entities": len(state.get("entities", [])),
-                "knowledge_graph": state.get("knowledge_graph", {}),
-                "document_structure": state.get("document_structure", {}),
-                "processing_time": state.get("processing_time", 0),
-                "warnings": state.get("warnings", [])
-            }
-            
-            state["result"] = result
-            state["processing_status"] = "completed"
-            
-            logger.info(f"文档处理完成: {state['document_id']}")
-            
-        except Exception as e:
-            state["error_message"] = f"处理完成阶段失败: {str(e)}"
-            state["processing_status"] = "error"
-            logger.error(f"处理完成阶段失败: {e}")
-            
-        return state
-    
-    async def handle_error(self, state: DocumentProcessingState) -> DocumentProcessingState:
-        """处理错误"""
-        state["current_step"] = "handle_error"
-        
-        error_result = {
-            "document_id": state["document_id"],
-            "project_id": state["project_id"],
-            "processing_status": "failed",
-            "error_message": state.get("error_message", "未知错误"),
-            "failed_step": state.get("current_step", "unknown"),
-            "warnings": state.get("warnings", [])
-        }
-        
-        state["result"] = error_result
-        state["processing_status"] = "failed"
-        
-        logger.error(f"文档处理失败: {state['document_id']}, 错误: {state.get('error_message')}")
-        
-        return state
-    
-    def _extract_title(self, content: str) -> str:
-        """提取文档标题"""
-        lines = content.split('\n')
-        for line in lines[:10]:  # 在前10行中查找标题
-            line = line.strip()
-            if line and len(line) < 100:
-                return line
-        return "未知标题"
-    
-    def _extract_sections(self, content: str) -> List[Dict[str, Any]]:
-        """提取章节信息"""
-        sections = []
-        lines = content.split('\n')
-        
-        current_section = None
-        section_id = 0
-        
-        for i, line in enumerate(lines):
-            line = line.strip()
-            
-            # 简化的章节检测逻辑
-            if self._is_section_header(line):
-                if current_section:
-                    sections.append(current_section)
-                
-                section_id += 1
-                current_section = {
-                    "id": str(uuid4()),
-                    "title": line,
-                    "section_type": "section",
-                    "level": self._get_section_level(line),
-                    "order_index": section_id,
-                    "line_start": i,
-                    "content": ""
-                }
-            elif current_section:
-                current_section["content"] += line + "\n"
-        
-        if current_section:
-            sections.append(current_section)
-        
-        return sections
-    
-    def _is_section_header(self, line: str) -> bool:
-        """判断是否为章节标题"""
-        if not line:
-            return False
-        
-        # 检查是否包含章节标识符
-        section_indicators = [
-            "第", "章", "节", "部分", "Chapter", "Section", "Part",
-            "一、", "二、", "三、", "四、", "五、", "六、", "七、", "八、", "九、", "十、",
-            "1.", "2.", "3.", "4.", "5.", "6.", "7.", "8.", "9.", "10."
-        ]
-        
-        return any(indicator in line for indicator in section_indicators) and len(line) < 100
-    
-    def _get_section_level(self, line: str) -> int:
-        """获取章节级别"""
-        if "第" in line and "章" in line:
-            return 1
-        elif "第" in line and "节" in line:
-            return 2
-        elif any(char in line for char in ["一、", "二、", "三、", "四、", "五、"]):
-            return 2
-        elif any(char in line for char in ["1.", "2.", "3.", "4.", "5."]):
-            return 3
-        else:
-            return 1
-    
-    def _extract_simple_entities(self, text: str) -> List[Dict[str, Any]]:
-        """简化的实体提取"""
-        entities = []
-        
-        # 简单的关键词提取（可以替换为更复杂的NER）
-        import re
-        
-        # 提取可能的人名
-        person_pattern = r'[A-Z][a-z]+\s+[A-Z][a-z]+'
-        persons = re.findall(person_pattern, text)
-        
-        for person in persons:
-            entities.append({
-                "text": person,
-                "type": "PERSON",
-                "confidence": 0.8
-            })
-        
-        # 提取可能的组织名
-        org_pattern = r'[A-Z][A-Za-z\s]+(?:公司|Corporation|Corp|Inc|Ltd|Limited)'
-        orgs = re.findall(org_pattern, text)
-        
-        for org in orgs:
-            entities.append({
-                "text": org,
-                "type": "ORGANIZATION",
-                "confidence": 0.7
-            })
-        
-        return entities
+        return graph
     
     async def process_document(
         self,
         project_id: str,
         document_id: str,
-        document_path: str,
-        document_type: str,
-        processing_config: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
-        """处理文档的主入口"""
-        start_time = datetime.utcnow()
+        file_path: str,
+        config: Optional[DocumentProcessingConfig] = None
+    ) -> DocumentProcessingState:
+        """处理文档"""
+        if config is None:
+            config = DocumentProcessingConfig()
         
         # 初始化状态
         initial_state = DocumentProcessingState(
             project_id=project_id,
             document_id=document_id,
-            document_path=document_path,
-            document_type=document_type,
-            processing_config=processing_config or {},
-            raw_content=None,
-            parsed_content=None,
-            document_structure=None,
-            chunks=None,
-            embeddings=None,
-            entities=None,
-            knowledge_graph=None,
-            processing_status="pending",
-            current_step="init",
+            file_path=file_path,
+            file_name=Path(file_path).name,
+            processing_options=config.dict(),
+            current_step="initialize",
+            progress=0.0,
+            status=ProcessingStatus.PROCESSING,
             error_message=None,
-            warnings=[],
-            processing_time=0.0,
-            result=None
+            parsed_content=None,
+            chunks=[],
+            embeddings=[],
+            indexed=False,
+            processing_start_time=datetime.now(),
+            processing_end_time=None,
+            processing_duration=None,
+            messages=[
+                SystemMessage(content="开始文档处理流程"),
+                HumanMessage(content=f"处理文档: {Path(file_path).name}")
+            ]
         )
         
+        # 运行图
+        config_dict = {
+            "configurable": {
+                "thread_id": f"doc_processing_{document_id}",
+                "checkpoint_ns": f"project_{project_id}"
+            }
+        }
+        
         try:
-            # 执行工作流
-            final_state = await self.graph.ainvoke(initial_state)
+            result = await self.compiled_graph.ainvoke(
+                initial_state,
+                config=RunnableConfig(**config_dict)
+            )
+            return result
+        except Exception as e:
+            self.logger.error(f"文档处理失败: {str(e)}")
+            # 返回错误状态
+            initial_state["status"] = ProcessingStatus.FAILED
+            initial_state["error_message"] = str(e)
+            initial_state["processing_end_time"] = datetime.now()
+            return initial_state
+    
+    async def _initialize_processing(self, state: DocumentProcessingState) -> DocumentProcessingState:
+        """初始化处理"""
+        self.logger.info(f"开始处理文档: {state['file_name']}")
+        
+        state["current_step"] = "initialize"
+        state["progress"] = 0.1
+        
+        # 验证文件存在
+        if not Path(state["file_path"]).exists():
+            state["status"] = ProcessingStatus.FAILED
+            state["error_message"] = f"文件不存在: {state['file_path']}"
+            return state
+        
+        # 验证项目存在
+        # TODO: 添加项目验证逻辑
+        
+        state["messages"].append(
+            SystemMessage(content=f"初始化完成，开始解析文档: {state['file_name']}")
+        )
+        
+        return state
+    
+    async def _parse_document(self, state: DocumentProcessingState) -> DocumentProcessingState:
+        """解析文档"""
+        self.logger.info(f"解析文档: {state['file_name']}")
+        
+        state["current_step"] = "parse_document"
+        state["progress"] = 0.2
+        
+        try:
+            # 解析文档
+            parsed_content = await parse_document(
+                state["file_path"],
+                **state["processing_options"]
+            )
             
-            # 计算总处理时间
-            processing_time = (datetime.utcnow() - start_time).total_seconds()
-            final_state["processing_time"] = processing_time
+            state["parsed_content"] = parsed_content
+            state["messages"].append(
+                SystemMessage(content=f"文档解析完成，提取文本长度: {len(parsed_content.text)} 字符")
+            )
             
-            return final_state.get("result", {})
+            self.logger.info(f"文档解析完成: {state['file_name']}, 文本长度: {len(parsed_content.text)}")
             
         except Exception as e:
-            logger.error(f"文档处理工作流执行失败: {e}")
+            self.logger.error(f"文档解析失败: {str(e)}")
+            state["status"] = ProcessingStatus.FAILED
+            state["error_message"] = f"文档解析失败: {str(e)}"
+        
+        return state
+    
+    async def _validate_content(self, state: DocumentProcessingState) -> DocumentProcessingState:
+        """验证内容质量"""
+        self.logger.info(f"验证文档内容: {state['file_name']}")
+        
+        state["current_step"] = "validate_content"
+        state["progress"] = 0.3
+        
+        if not state["parsed_content"]:
+            state["status"] = ProcessingStatus.FAILED
+            state["error_message"] = "没有解析内容可供验证"
+            return state
+        
+        try:
+            content = state["parsed_content"]
+            quality_score = await self._calculate_content_quality(content)
             
-            error_result = {
-                "document_id": document_id,
-                "project_id": project_id,
-                "processing_status": "failed",
-                "error_message": str(e),
-                "processing_time": (datetime.utcnow() - start_time).total_seconds()
+            quality_threshold = state["processing_options"].get("quality_threshold", 0.8)
+            
+            if quality_score < quality_threshold:
+                state["status"] = ProcessingStatus.FAILED
+                state["error_message"] = f"内容质量不达标: {quality_score:.2f} < {quality_threshold}"
+                return state
+            
+            state["messages"].append(
+                SystemMessage(content=f"内容质量验证通过，质量分数: {quality_score:.2f}")
+            )
+            
+            self.logger.info(f"内容质量验证通过: {state['file_name']}, 质量分数: {quality_score:.2f}")
+            
+        except Exception as e:
+            self.logger.error(f"内容验证失败: {str(e)}")
+            state["status"] = ProcessingStatus.FAILED
+            state["error_message"] = f"内容验证失败: {str(e)}"
+        
+        return state
+    
+    async def _chunk_content(self, state: DocumentProcessingState) -> DocumentProcessingState:
+        """分块内容"""
+        self.logger.info(f"分块文档内容: {state['file_name']}")
+        
+        state["current_step"] = "chunk_content"
+        state["progress"] = 0.5
+        
+        if not state["parsed_content"]:
+            state["status"] = ProcessingStatus.FAILED
+            state["error_message"] = "没有内容可供分块"
+            return state
+        
+        try:
+            content = state["parsed_content"]
+            
+            # 配置分块参数
+            chunking_config = {
+                "strategy": ChunkingStrategy(state["processing_options"].get("chunking_strategy", "semantic")),
+                "chunk_size": state["processing_options"].get("chunk_size", 1000),
+                "chunk_overlap": state["processing_options"].get("chunk_overlap", 200)
             }
             
-            return error_result
+            # 执行分块
+            chunks = await self.chunker.chunk_document(
+                content.text,
+                document_id=state["document_id"],
+                metadata=content.metadata,
+                **chunking_config
+            )
+            
+            state["chunks"] = chunks
+            state["messages"].append(
+                SystemMessage(content=f"内容分块完成，生成 {len(chunks)} 个块")
+            )
+            
+            self.logger.info(f"内容分块完成: {state['file_name']}, 生成 {len(chunks)} 个块")
+            
+        except Exception as e:
+            self.logger.error(f"内容分块失败: {str(e)}")
+            state["status"] = ProcessingStatus.FAILED
+            state["error_message"] = f"内容分块失败: {str(e)}"
+        
+        return state
+    
+    async def _generate_embeddings(self, state: DocumentProcessingState) -> DocumentProcessingState:
+        """生成嵌入向量"""
+        self.logger.info(f"生成嵌入向量: {state['file_name']}")
+        
+        state["current_step"] = "generate_embeddings"
+        state["progress"] = 0.7
+        
+        if not state["chunks"]:
+            state["status"] = ProcessingStatus.FAILED
+            state["error_message"] = "没有块可供向量化"
+            return state
+        
+        try:
+            # 提取文本内容
+            texts = [chunk.content for chunk in state["chunks"]]
+            
+            # 生成嵌入向量
+            embeddings = await self.vector_store.embed_texts(texts)
+            
+            # 更新块的嵌入向量
+            for chunk, embedding in zip(state["chunks"], embeddings):
+                chunk.embedding = embedding
+            
+            state["embeddings"] = embeddings
+            state["messages"].append(
+                SystemMessage(content=f"嵌入向量生成完成，处理 {len(embeddings)} 个向量")
+            )
+            
+            self.logger.info(f"嵌入向量生成完成: {state['file_name']}, 处理 {len(embeddings)} 个向量")
+            
+        except Exception as e:
+            self.logger.error(f"嵌入向量生成失败: {str(e)}")
+            state["status"] = ProcessingStatus.FAILED
+            state["error_message"] = f"嵌入向量生成失败: {str(e)}"
+        
+        return state
+    
+    async def _index_content(self, state: DocumentProcessingState) -> DocumentProcessingState:
+        """索引内容"""
+        self.logger.info(f"索引文档内容: {state['file_name']}")
+        
+        state["current_step"] = "index_content"
+        state["progress"] = 0.9
+        
+        if not state["chunks"] or not state["embeddings"]:
+            state["status"] = ProcessingStatus.FAILED
+            state["error_message"] = "没有内容或嵌入向量可供索引"
+            return state
+        
+        try:
+            # 索引到向量数据库
+            collection_name = f"project_{state['project_id']}"
+            
+            # 准备向量数据
+            points = []
+            for i, (chunk, embedding) in enumerate(zip(state["chunks"], state["embeddings"])):
+                point = {
+                    "id": chunk.id,
+                    "vector": embedding,
+                    "payload": {
+                        "document_id": state["document_id"],
+                        "project_id": state["project_id"],
+                        "chunk_index": i,
+                        "content": chunk.content,
+                        "metadata": chunk.metadata,
+                        "start_index": chunk.start_index,
+                        "end_index": chunk.end_index
+                    }
+                }
+                points.append(point)
+            
+            # 批量插入向量
+            await self.qdrant_client.upsert_vectors(collection_name, points)
+            
+            # 更新知识索引
+            await self.knowledge_index.index_document_chunks(
+                state["project_id"],
+                state["document_id"],
+                state["chunks"]
+            )
+            
+            state["indexed"] = True
+            state["messages"].append(
+                SystemMessage(content=f"内容索引完成，索引 {len(points)} 个向量")
+            )
+            
+            self.logger.info(f"内容索引完成: {state['file_name']}, 索引 {len(points)} 个向量")
+            
+        except Exception as e:
+            self.logger.error(f"内容索引失败: {str(e)}")
+            state["status"] = ProcessingStatus.FAILED
+            state["error_message"] = f"内容索引失败: {str(e)}"
+        
+        return state
+    
+    async def _finalize_processing(self, state: DocumentProcessingState) -> DocumentProcessingState:
+        """完成处理"""
+        self.logger.info(f"完成文档处理: {state['file_name']}")
+        
+        state["current_step"] = "finalize"
+        state["progress"] = 1.0
+        state["status"] = ProcessingStatus.COMPLETED
+        state["processing_end_time"] = datetime.now()
+        
+        # 计算处理时长
+        duration = (state["processing_end_time"] - state["processing_start_time"]).total_seconds()
+        state["processing_duration"] = duration
+        
+        state["messages"].append(
+            SystemMessage(content=f"文档处理完成，耗时 {duration:.2f} 秒")
+        )
+        
+        # TODO: 更新数据库中的文档状态
+        await self._update_document_status(state)
+        
+        self.logger.info(f"文档处理完成: {state['file_name']}, 耗时 {duration:.2f} 秒")
+        
+        return state
+    
+    async def _handle_error(self, state: DocumentProcessingState) -> DocumentProcessingState:
+        """处理错误"""
+        self.logger.error(f"文档处理出错: {state['file_name']}, 错误: {state.get('error_message', '未知错误')}")
+        
+        state["current_step"] = "handle_error"
+        state["status"] = ProcessingStatus.FAILED
+        state["processing_end_time"] = datetime.now()
+        
+        if state["processing_start_time"]:
+            duration = (state["processing_end_time"] - state["processing_start_time"]).total_seconds()
+            state["processing_duration"] = duration
+        
+        state["messages"].append(
+            SystemMessage(content=f"文档处理失败: {state.get('error_message', '未知错误')}")
+        )
+        
+        # TODO: 更新数据库中的文档状态
+        await self._update_document_status(state)
+        
+        return state
+    
+    # 条件判断函数
+    def _should_validate_content(self, state: DocumentProcessingState) -> str:
+        """判断是否应该验证内容"""
+        if state["status"] == ProcessingStatus.FAILED:
+            return "error"
+        if state["parsed_content"] is None:
+            return "error"
+        return "validate"
+    
+    def _should_proceed_to_chunking(self, state: DocumentProcessingState) -> str:
+        """判断是否应该进行分块"""
+        if state["status"] == ProcessingStatus.FAILED:
+            return "error"
+        return "chunk"
+    
+    def _should_index_content(self, state: DocumentProcessingState) -> str:
+        """判断是否应该索引内容"""
+        if state["status"] == ProcessingStatus.FAILED:
+            return "error"
+        if not state["embeddings"]:
+            return "error"
+        return "index"
+    
+    # 辅助方法
+    async def _calculate_content_quality(self, content: DocumentContent) -> float:
+        """计算内容质量分数"""
+        try:
+            score = 0.0
+            
+            # 文本长度检查 (30%)
+            text_length = len(content.text.strip())
+            if text_length > 100:
+                score += 0.3
+            elif text_length > 50:
+                score += 0.15
+            
+            # 结构化程度检查 (25%)
+            if content.structure.get("sections"):
+                score += 0.25
+            elif content.structure.get("paragraph_count", 0) > 1:
+                score += 0.1
+            
+            # 元数据完整性检查 (20%)
+            metadata_fields = ["title", "author", "creation_date", "file_size"]
+            filled_fields = sum(1 for field in metadata_fields if content.metadata.get(field))
+            score += (filled_fields / len(metadata_fields)) * 0.2
+            
+            # 内容可读性检查 (25%)
+            # 简单检查：字母数字比例
+            text = content.text
+            alphanumeric_chars = sum(1 for c in text if c.isalnum())
+            if len(text) > 0:
+                readability_ratio = alphanumeric_chars / len(text)
+                if readability_ratio > 0.7:
+                    score += 0.25
+                elif readability_ratio > 0.5:
+                    score += 0.15
+            
+            return min(score, 1.0)
+            
+        except Exception as e:
+            self.logger.warning(f"质量评分计算失败: {str(e)}")
+            return 0.5  # 默认中等质量
+    
+    async def _update_document_status(self, state: DocumentProcessingState):
+        """更新文档状态到数据库"""
+        try:
+            # TODO: 实现数据库更新逻辑
+            # 这里应该更新Document模型的状态
+            pass
+        except Exception as e:
+            self.logger.error(f"更新文档状态失败: {str(e)}")
+    
+    async def get_processing_status(self, document_id: str) -> Optional[Dict[str, Any]]:
+        """获取处理状态"""
+        try:
+            # TODO: 从检查点存储中获取状态
+            # 这需要根据document_id查找对应的线程ID
+            return None
+        except Exception as e:
+            self.logger.error(f"获取处理状态失败: {str(e)}")
+            return None
+    
+    async def cancel_processing(self, document_id: str) -> bool:
+        """取消处理"""
+        try:
+            # TODO: 实现处理取消逻辑
+            return False
+        except Exception as e:
+            self.logger.error(f"取消处理失败: {str(e)}")
+            return False
 
 
-# 全局文档处理智能体实例
-_document_processing_agent = None
+# 全局实例
+document_processing_agent = DocumentProcessingAgent()
 
-def get_document_processing_agent() -> DocumentProcessingAgent:
-    """获取文档处理智能体实例（单例模式）"""
-    global _document_processing_agent
-    if _document_processing_agent is None:
-        _document_processing_agent = DocumentProcessingAgent()
-    return _document_processing_agent 
+
+# 便捷函数
+async def process_document(
+    project_id: str,
+    document_id: str,
+    file_path: str,
+    config: Optional[DocumentProcessingConfig] = None
+) -> DocumentProcessingState:
+    """处理文档的便捷函数"""
+    return await document_processing_agent.process_document(
+        project_id, document_id, file_path, config
+    )
+
+
+async def get_processing_status(document_id: str) -> Optional[Dict[str, Any]]:
+    """获取处理状态的便捷函数"""
+    return await document_processing_agent.get_processing_status(document_id)
+
+
+async def cancel_processing(document_id: str) -> bool:
+    """取消处理的便捷函数"""
+    return await document_processing_agent.cancel_processing(document_id) 
