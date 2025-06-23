@@ -1,317 +1,375 @@
-# DPA 深度研究知识引擎 - 开发环境设置指南
+# DPA 智能知识引擎 - 环境配置指南
 
-## 📋 概述
+> **版本**: v4.0  
+> **更新日期**: 2025年1月23日  
+> **状态**: 基于dpa_gen conda环境的生产就绪配置
 
-本文档将指导您完成DPA项目的开发环境设置，包括数据库配置、依赖安装和项目启动。
+## 1. 环境要求
 
-## 🔧 系统要求
+### 1.1 系统要求
+- **操作系统**: macOS 10.15+, Ubuntu 18.04+, Windows 10+
+- **Python版本**: 3.11.5 (通过conda管理)
+- **内存**: 最小8GB，推荐16GB+
+- **存储**: 最小20GB可用空间
+- **网络**: 稳定的互联网连接（用于AI API调用）
 
-### 必需组件
-- **Python 3.11+** - 后端开发语言
-- **Node.js 18+** - 前端开发环境
-- **pnpm** - 前端包管理器（推荐）
+### 1.2 外部服务依赖
+- **数据库服务器**: rtx4080:5432 (PostgreSQL)
+- **向量数据库**: rtx4080:6333 (Qdrant)
+- **图数据库**: rtx4080:7687 (Neo4j)
+- **缓存服务**: rtx4080:6379 (Redis)
 
-### 数据库要求（需要您手动部署）
-- **PostgreSQL 15+** - 主数据库
-- **Qdrant 1.8+** - 向量数据库
-- **Neo4j 5.0+** - 图数据库
-- **Redis 7+** - 缓存和消息队列
+## 2. 快速开始 (推荐)
 
-### 可选组件
-- **Conda/Miniconda** - Python环境管理（推荐）
-- **Docker** - 容器化部署
-
-## 🚀 快速开始
-
-### 方法一：自动设置脚本（推荐）
-
+### 2.1 克隆项目
 ```bash
-# 克隆项目
-git clone <your-repo-url>
+git clone <repository-url>
 cd DPA
-
-# 运行自动设置脚本
-./scripts/dev_setup.sh
 ```
 
-### 方法二：手动设置
-
-#### 1. 创建环境配置
-
+### 2.2 创建conda环境
 ```bash
-# 复制环境配置模板
+# 使用environment.yml文件创建环境
+conda env create -f environment.yml
+
+# 激活环境
+conda activate dpa_gen
+
+# 验证环境
+python --version  # 应显示 Python 3.11.5
+```
+
+### 2.3 配置环境变量
+```bash
+# 复制环境变量模板
 cp env.template .env
 
-# 编辑配置文件，填写您的数据库信息
-vim .env
+# 编辑.env文件，配置以下关键参数：
+# - 数据库连接信息 (rtx4080服务器)
+# - AI API密钥 (OpenAI, Anthropic, Cohere等)
+# - LangSmith监控配置
 ```
 
-#### 2. 设置Python环境
-
-使用Conda（推荐）：
+### 2.4 验证配置
 ```bash
-# 创建虚拟环境
-conda create -n dpa-dev python=3.11
-conda activate dpa-dev
+# 运行配置测试
+python scripts/test_config.py
+
+# 运行组件测试
+python scripts/test_components.py
+
+# 查看测试报告
+python scripts/test_report.py
+```
+
+### 2.5 启动开发服务器
+```bash
+# 使用开发脚本启动
+./scripts/dev_setup.sh
+
+# 或手动启动
+uvicorn src.api.main:app --host 0.0.0.0 --port 8000 --reload
+```
+
+## 3. 详细安装步骤
+
+### 3.1 Conda环境管理
+
+#### 创建环境 (使用environment.yml)
+```bash
+# 创建名为dpa_gen的环境
+conda env create -f environment.yml -n dpa_gen
+
+# 激活环境
+conda activate dpa_gen
+
+# 验证安装
+pip list | grep -E "(langchain|fastapi|pydantic)"
+```
+
+#### 手动创建环境 (备选方案)
+```bash
+# 创建基础环境
+conda create -n dpa_gen python=3.11.5 -y
+conda activate dpa_gen
 
 # 安装核心依赖
-conda install -c conda-forge numpy pandas fastapi uvicorn redis-py psycopg2
+pip install -r requirements.txt
 
-# 安装其他依赖
-pip install --upgrade pip
+# 验证安装
+python -c "import langchain, fastapi, pydantic; print('核心依赖安装成功')"
+```
+
+### 3.2 数据库连接配置
+
+#### PostgreSQL连接测试
+```bash
+# 测试数据库连接
+python -c "
+import psycopg2
+try:
+    conn = psycopg2.connect(
+        host='rtx4080',
+        port=5432,
+        database='dpa_dev',
+        user='dpa_user',
+        password='dpa_password'
+    )
+    print('PostgreSQL连接成功')
+    conn.close()
+except Exception as e:
+    print(f'PostgreSQL连接失败: {e}')
+"
+```
+
+#### Qdrant连接测试
+```bash
+# 测试向量数据库连接
+python -c "
+from qdrant_client import QdrantClient
+try:
+    client = QdrantClient(url='http://rtx4080:6333')
+    print('Qdrant连接成功')
+except Exception as e:
+    print(f'Qdrant连接失败: {e}')
+"
+```
+
+### 3.3 AI API配置
+
+#### 配置API密钥
+```bash
+# 在.env文件中配置以下密钥：
+OPENAI_API_KEY=sk-...
+ANTHROPIC_API_KEY=sk-ant-...
+COHERE_API_KEY=...
+OPENROUTER_API_KEY=sk-or-...
+
+# LangSmith监控
+LANGCHAIN_TRACING_V2=true
+LANGCHAIN_API_KEY=ls__...
+LANGCHAIN_PROJECT=dpa-development
+```
+
+#### 测试API连接
+```bash
+# 测试OpenAI API
+python -c "
+from openai import OpenAI
+import os
+client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+try:
+    response = client.models.list()
+    print('OpenAI API连接成功')
+except Exception as e:
+    print(f'OpenAI API连接失败: {e}')
+"
+```
+
+## 4. 开发工具配置
+
+### 4.1 代码质量工具
+```bash
+# 代码格式化
+ruff format .
+
+# 代码检查
+ruff check . --fix
+
+# 类型检查
+mypy src/ --strict
+
+# 安全扫描
+bandit -r src/ -f json -o security-report.json
+```
+
+### 4.2 测试框架
+```bash
+# 运行所有测试
+pytest -v --cov=src --cov-report=html
+
+# 运行特定测试
+pytest tests/test_basic.py -v
+
+# 运行集成测试
+pytest tests/test_integration.py -v
+```
+
+### 4.3 数据库迁移
+```bash
+# 初始化迁移
+alembic init alembic
+
+# 创建迁移
+alembic revision --autogenerate -m "初始化数据库"
+
+# 应用迁移
+alembic upgrade head
+
+# 查看迁移历史
+alembic history
+```
+
+## 5. 故障排除
+
+### 5.1 常见问题
+
+#### Python版本问题
+```bash
+# 问题：Python版本不匹配
+# 解决：确保使用Python 3.11.5
+conda activate dpa_gen
+python --version
+
+# 如果版本不对，重新创建环境
+conda remove -n dpa_gen --all
+conda env create -f environment.yml
+```
+
+#### 依赖包冲突
+```bash
+# 问题：包版本冲突
+# 解决：清理并重新安装
+pip cache purge
+pip uninstall -y langchain langchain-community langchain-core langchain-openai
 pip install -r requirements.txt
 ```
 
-使用pip：
+#### 数据库连接问题
 ```bash
-# 创建虚拟环境
-python3 -m venv venv
-source venv/bin/activate  # Linux/Mac
-# venv\Scripts\activate  # Windows
+# 问题：无法连接到rtx4080服务器
+# 解决：检查网络和防火墙设置
+ping rtx4080
+telnet rtx4080 5432
 
-# 安装依赖
-pip install --upgrade pip
-pip install -r requirements.txt
+# 检查.env文件中的连接信息
+cat .env | grep DATABASE_URL
 ```
 
-#### 3. 设置前端环境
-
+#### LangChain版本兼容性
 ```bash
-# 安装pnpm（如果未安装）
-npm install -g pnpm
-
-# 创建Next.js项目（如果frontend目录不存在）
-pnpm create next-app@latest frontend --typescript --tailwind --eslint
-
-# 进入前端目录并安装依赖
-cd frontend
-pnpm install
-
-# 安装UI组件库
-pnpm add @tanstack/react-query lucide-react
-pnpm dlx shadcn-ui@latest init
-
-cd ..
+# 问题：LangChain版本不兼容
+# 解决：确保使用指定版本
+pip install langchain==0.3.26 langchain-community==0.3.26 langchain-core==0.3.66
 ```
 
-#### 4. 初始化数据库
-
+### 5.2 日志调试
 ```bash
-# 运行数据库初始化脚本
+# 启用调试日志
+export DEBUG=true
+export LOG_LEVEL=DEBUG
+
+# 查看应用日志
+tail -f data/logs/app.log
+
+# 查看错误日志
+tail -f data/logs/error.log
+```
+
+### 5.3 性能调优
+```bash
+# 检查系统资源
+htop
+free -h
+df -h
+
+# 监控数据库连接
+python -c "
+from src.database.postgresql import get_db_stats
+print(get_db_stats())
+"
+```
+
+## 6. 生产部署
+
+### 6.1 Docker部署
+```bash
+# 构建镜像
+docker-compose -f docker-compose.dev.yml build
+
+# 启动服务
+docker-compose -f docker-compose.dev.yml up -d
+
+# 查看日志
+docker-compose -f docker-compose.dev.yml logs -f api
+```
+
+### 6.2 性能优化
+```bash
+# 启用生产模式
+export ENVIRONMENT=production
+export DEBUG=false
+
+# 使用Gunicorn启动
+gunicorn src.api.main:app -w 4 -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000
+```
+
+## 7. 验证清单
+
+### 7.1 环境验证
+- [ ] conda环境 `dpa_gen` 创建成功
+- [ ] Python版本为 3.11.5
+- [ ] 所有依赖包安装成功
+- [ ] .env文件配置完成
+
+### 7.2 服务连接验证
+- [ ] PostgreSQL连接成功 (rtx4080:5432)
+- [ ] Qdrant连接成功 (rtx4080:6333)
+- [ ] Neo4j连接成功 (rtx4080:7687)
+- [ ] Redis连接成功 (rtx4080:6379)
+
+### 7.3 API验证
+- [ ] OpenAI API连接成功
+- [ ] Anthropic API连接成功
+- [ ] LangSmith监控配置成功
+
+### 7.4 功能验证
+- [ ] 配置系统正常加载
+- [ ] 数据模型正常工作
+- [ ] 文档解析器正常工作
+- [ ] 文档分块系统正常
+- [ ] 向量化系统正常
+
+### 7.5 开发工具验证
+- [ ] 代码格式化工具正常
+- [ ] 类型检查工具正常
+- [ ] 测试框架正常
+- [ ] 数据库迁移正常
+
+## 8. 支持与帮助
+
+### 8.1 文档资源
+- [PRD产品需求文档](./PRD.md)
+- [TECH_SPEC技术规格](./TECH_SPEC.md)
+- [开发计划](./DEVELOPMENT_PLAN.md)
+
+### 8.2 常用命令速查
+```bash
+# 环境管理
+conda activate dpa_gen
+conda deactivate
+
+# 开发服务器
+uvicorn src.api.main:app --reload
+./scripts/dev_setup.sh
+
+# 测试
+pytest -v
+python scripts/test_config.py
+
+# 代码质量
+ruff format .
+ruff check . --fix
+mypy src/ --strict
+
+# 数据库
+alembic upgrade head
 python scripts/setup_databases.py
 ```
 
-## ⚙️ 环境配置详解
-
-### .env 文件配置
-
-复制 `env.template` 为 `.env` 并填写以下关键配置：
-
-```bash
-# 数据库配置
-DATABASE_URL=postgresql://username:password@host:5432/database
-QDRANT_URL=http://host:6333
-NEO4J_URL=bolt://host:7687
-NEO4J_USERNAME=neo4j
-NEO4J_PASSWORD=your_password
-REDIS_URL=redis://host:6379
-
-# AI模型配置
-OPENROUTER_API_KEY=your_api_key
-
-# 安全配置
-SECRET_KEY=your-secret-key
-JWT_SECRET_KEY=your-jwt-secret
-```
-
-### 数据库连接信息填写示例
-
-#### PostgreSQL
-```bash
-# 本地部署
-DATABASE_URL=postgresql://dpa_user:dpa_password@localhost:5432/dpa_dev
-
-# 云服务（如AWS RDS）
-DATABASE_URL=postgresql://username:password@your-rds-endpoint:5432/dpa_prod
-```
-
-#### Qdrant
-```bash
-# 本地部署
-QDRANT_URL=http://localhost:6333
-
-# 云服务
-QDRANT_URL=https://your-cluster.qdrant.io:6333
-QDRANT_API_KEY=your_api_key
-```
-
-#### Neo4j
-```bash
-# 本地部署
-NEO4J_URL=bolt://localhost:7687
-NEO4J_USERNAME=neo4j
-NEO4J_PASSWORD=your_password
-
-# Neo4j AuraDB
-NEO4J_URL=neo4j+s://your-instance.databases.neo4j.io
-```
-
-#### Redis
-```bash
-# 本地部署
-REDIS_URL=redis://localhost:6379
-
-# 云服务（如Redis Cloud）
-REDIS_URL=redis://username:password@host:port
-```
-
-## 🏃‍♂️ 启动项目
-
-### 启动后端服务
-
-```bash
-# 激活Python环境
-conda activate dpa-dev  # 或 source venv/bin/activate
-
-# 启动FastAPI服务
-uvicorn src.api.main:app --reload --host 0.0.0.0 --port 8000
-```
-
-### 启动前端服务
-
-```bash
-# 进入前端目录
-cd frontend
-
-# 启动开发服务器
-pnpm dev
-```
-
-### 启动异步任务处理器（可选）
-
-```bash
-# 启动Celery Worker
-celery -A src.celery worker --loglevel=info
-```
-
-## 🔗 访问地址
-
-- **前端应用**: http://localhost:3000
-- **后端API**: http://localhost:8000
-- **API文档**: http://localhost:8000/docs
-- **API交互文档**: http://localhost:8000/redoc
-
-## 🧪 运行测试
-
-```bash
-# Python测试
-pytest tests/ -v --cov=src
-
-# 前端测试
-cd frontend
-pnpm test
-
-# 代码质量检查
-ruff check . --fix
-ruff format .
-mypy src/
-```
-
-## 📁 项目结构
-
-```
-DPA/
-├── src/                    # 后端源码
-│   ├── api/               # API路由
-│   ├── config/            # 配置管理
-│   ├── core/              # 核心业务逻辑
-│   ├── database/          # 数据库连接
-│   ├── models/            # 数据模型
-│   ├── services/          # 业务服务
-│   └── utils/             # 工具函数
-├── frontend/              # 前端源码
-├── tests/                 # 测试文件
-├── scripts/               # 脚本文件
-├── data/                  # 数据目录
-├── docs/                  # 文档
-├── .env                   # 环境配置（需要创建）
-├── env.template           # 环境配置模板
-├── requirements.txt       # Python依赖
-└── environment.yml        # Conda环境配置
-```
-
-## 🐛 常见问题
-
-### 1. 数据库连接失败
-
-**问题**: `connection to server failed`
-
-**解决方案**:
-- 检查数据库服务是否启动
-- 验证连接信息（主机、端口、用户名、密码）
-- 确认防火墙设置
-- 检查网络连通性
-
-### 2. Python依赖安装失败
-
-**问题**: `pip install` 报错
-
-**解决方案**:
-```bash
-# 升级pip
-pip install --upgrade pip
-
-# 使用国内镜像
-pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple/
-
-# 如果是M1 Mac，可能需要特殊处理
-conda install -c conda-forge psycopg2
-```
-
-### 3. 前端启动失败
-
-**问题**: `pnpm dev` 报错
-
-**解决方案**:
-```bash
-# 清理缓存
-pnpm store prune
-
-# 重新安装依赖
-rm -rf node_modules pnpm-lock.yaml
-pnpm install
-
-# 检查Node.js版本
-node --version  # 应该是18+
-```
-
-### 4. 环境变量未生效
-
-**问题**: 配置读取错误
-
-**解决方案**:
-- 确认 `.env` 文件在项目根目录
-- 检查环境变量格式（无空格、正确的等号）
-- 重启应用服务
-
-## 📞 获取帮助
-
-如果遇到问题：
-
-1. 查看日志文件：`tail -f data/logs/dpa.log`
-2. 运行诊断脚本：`python scripts/setup_databases.py`
-3. 检查系统要求是否满足
-4. 参考错误日志进行排查
-
-## 🎯 下一步
-
-环境设置完成后，您可以：
-
-1. 查看 [API文档](http://localhost:8000/docs) 了解接口
-2. 阅读 [开发指南](./DEVELOPMENT.md) 了解开发流程
-3. 参考 [部署指南](./DEPLOYMENT.md) 进行生产部署
-4. 查看 [贡献指南](./CONTRIBUTING.md) 参与项目开发
-
----
-
-**祝您开发愉快！** 🚀 
+### 8.3 性能基准
+- **启动时间**: < 10秒
+- **配置加载**: < 2秒
+- **数据库连接**: < 1秒
+- **API响应**: < 100ms (健康检查)
+- **内存使用**: < 2GB (空载) 

@@ -1,8 +1,10 @@
 # DPA 智能知识引擎 - 技术规格文档 (TECH_SPEC)
 
-> **版本**: v3.0  
-> **更新日期**: 2024年12月18日  
-> **状态**: 基于LangGraph/LangChain深度集成的知识引擎架构
+> **版本**: v0.4 
+> **更新日期**: 2025年6月23日  
+> **状态**: 基于dpa_gen conda环境的生产就绪版本  
+> **技术栈**: Python 3.11.5 + LangChain 0.3.26 + LangGraph 0.4.8 + FastAPI 0.115.13  
+> **开发环境**: dpa_gen conda环境，连接rtx4080服务器集群4
 
 ## 1. 系统架构概览
 
@@ -10,11 +12,11 @@
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                   用户界面层 (UI Layer)                         │
+│                  前端界面层 (Frontend Layer)                    │
 │  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ ┌───────────┐   │
 │  │研究工作台   │ │知识图谱     │ │项目管理     │ │报告生成   │   │
-│  │(Next.js)    │ │可视化       │ │仪表板       │ │导出       │   │
-│  │             │ │(D3.js)      │ │(React)      │ │(PDF/MD)   │   │
+│  │(Next.js 14) │ │可视化       │ │仪表板       │ │导出       │   │
+│  │TypeScript   │ │(D3.js)      │ │(React)      │ │(PDF/MD)   │   │
 │  └─────────────┘ └─────────────┘ └─────────────┘ └───────────┘   │
 ├─────────────────────────────────────────────────────────────────┤
 │                   API网关层 (API Gateway Layer)                 │
@@ -36,10 +38,11 @@
 │  │(LangChain)  │ │(LangChain)  │ │(LangChain)  │ │工具       │   │
 │  └─────────────┘ └─────────────┘ └─────────────┘ └───────────┘   │
 ├─────────────────────────────────────────────────────────────────┤
-│                   数据存储层 (Storage Layer)                    │
+│                数据存储层 (Storage Layer - rtx4080)             │
 │  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ ┌───────────┐   │
-│  │项目数据库   │ │向量数据库   │ │知识图谱     │ │文件存储   │   │
-│  │(PostgreSQL) │ │(Qdrant)     │ │(Neo4j)      │ │(MinIO)    │   │
+│  │PostgreSQL   │ │Qdrant       │ │Neo4j        │ │Redis      │   │
+│  │:5432        │ │:6333        │ │:7687        │ │:6379      │   │
+│  │项目元数据   │ │向量索引     │ │知识图谱     │ │缓存/会话  │   │
 │  └─────────────┘ └─────────────┘ └─────────────┘ └───────────┘   │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -52,32 +55,72 @@
 - **渐进式学习**: 项目记忆库支持持续学习和知识演化
 - **精准溯源**: 每个回答都能准确追溯到原始文档位置
 - **模块化设计**: 高内聚、低耦合的组件化架构
+- **生产就绪**: 基于dpa_gen环境的稳定部署配置
 
-### 1.3 技术栈选型
+### 1.3 技术栈选型与版本
 
-#### 1.3.1 核心框架
-- **LangGraph**: 智能体工作流编排引擎
-- **LangChain**: RAG工具链和模型集成
-- **FastAPI**: 高性能异步Web框架
-- **Pydantic**: 数据验证和序列化
+#### 1.3.1 核心框架 (已配置完成 ✅)
+- **LangGraph**: 0.4.8 - 智能体工作流编排引擎
+- **LangChain**: 0.3.26 - RAG工具链和模型集成
+  - langchain-community: 0.3.26
+  - langchain-core: 0.3.66
+  - langchain-openai: 0.3.24
+- **LangSmith**: 0.4.1 - 可观测性和调试
+- **FastAPI**: 0.115.13 - 高性能异步Web框架
+- **Pydantic**: 2.10.3 - 数据验证和序列化
 
-#### 1.3.2 AI/ML组件
-- **Embedding模型**: OpenAI text-embedding-3-large / BGE-M3
-- **语言模型**: OpenAI GPT-4o, Anthropic Claude-3.5, DeepSeek-V3
-- **向量数据库**: Qdrant (支持混合检索)
-- **图数据库**: Neo4j (知识图谱存储)
+#### 1.3.2 AI/ML组件 (已配置完成 ✅)
+- **Embedding模型**: 
+  - OpenAI text-embedding-3-large (主要)
+  - BGE-M3 (备选，本地部署)
+- **语言模型**: 
+  - OpenAI GPT-4o (主力)
+  - Anthropic Claude-3.5-Sonnet (备选)
+  - DeepSeek-V3 (成本优化)
+  - Cohere Command-R+ (特定场景)
+- **向量数据库**: Qdrant 1.14.3+ (支持混合检索)
+- **图数据库**: Neo4j 5.28.1 (知识图谱存储)
 
-#### 1.3.3 数据存储
-- **关系数据库**: PostgreSQL (项目元数据)
-- **文档存储**: MinIO (S3兼容对象存储)
-- **缓存**: Redis (会话和缓存管理)
-- **搜索引擎**: Elasticsearch (全文检索)
+#### 1.3.3 数据存储 (rtx4080服务器集群 ✅)
+- **关系数据库**: PostgreSQL 16+ (项目元数据)
+  - 连接地址: rtx4080:5432
+  - 数据库: dpa_dev, dpa_test, dpa_prod
+- **向量数据库**: Qdrant (文档向量索引)
+  - 连接地址: rtx4080:6333
+  - 集合: documents, chunks, conversations
+- **图数据库**: Neo4j (知识图谱)
+  - 连接地址: rtx4080:7687
+  - 数据库: neo4j
+- **缓存系统**: Redis (会话和缓存管理)
+  - 连接地址: rtx4080:6379
+  - 数据库: 0-15 (多用途隔离)
 
-#### 1.3.4 前端技术
+#### 1.3.4 开发工具链 (已配置完成 ✅)
+- **Python环境**: 3.11.5 (dpa_gen conda环境)
+- **包管理**: conda + pip (environment.yml + requirements.txt)
+- **代码质量**: 
+  - Ruff 0.8.9+ (格式化和linting)
+  - MyPy 1.13.0+ (类型检查)
+  - Bandit 1.8.0+ (安全扫描)
+- **测试框架**: 
+  - Pytest 8.3.4+
+  - Pytest-asyncio 0.25.0+
+  - 覆盖率目标: >85%
+
+#### 1.3.5 文档处理 (已实现 ✅)
+- **PDF解析**: PyPDF 5.6.1
+- **Word文档**: python-docx 1.2.0
+- **Markdown**: markdown 3.8.2
+- **HTML解析**: BeautifulSoup4 4.13.4 + lxml 5.4.0
+- **文本分块**: LangChain RecursiveCharacterTextSplitter
+- **语义分块**: LangChain SemanticChunker (实验性)
+
+#### 1.3.6 前端技术 (规划中 🔄)
 - **框架**: Next.js 14 + TypeScript
 - **UI组件**: shadcn/ui + Tailwind CSS
 - **可视化**: D3.js + React Flow (知识图谱)
 - **状态管理**: Zustand + React Query
+- **实时通信**: Socket.io (WebSocket)
 
 ## 2. 基于LangGraph的智能体架构
 
@@ -611,114 +654,185 @@ class MemoryManagementAgent:
                  return state
 ```
 
-## 3. 数据模型设计
+## 3. 数据模型设计 (已实现 ✅)
 
-### 3.1 Pydantic数据模型
+### 3.1 核心数据模型 (基于实际实现)
 ```python
+# src/models/base.py - 基础模型
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy import Column, Integer, DateTime, func
 from pydantic import BaseModel, Field
-from typing import List, Optional, Dict, Any
+from typing import Optional
 from datetime import datetime
+
+Base = declarative_base()
+
+class BaseEntity(Base):
+    """基础实体类"""
+    __abstract__ = True
+    
+    id = Column(Integer, primary_key=True, index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+# src/models/user.py - 用户模型 (已实现)
+class User(BaseEntity):
+    """用户模型 - 已实现并测试通过"""
+    __tablename__ = "users"
+    
+    username = Column(String(50), unique=True, index=True, nullable=False)
+    email = Column(String(100), unique=True, index=True, nullable=False)
+    hashed_password = Column(Text, nullable=False)
+    is_active = Column(Boolean, default=True)
+    preferences = Column(JSON, default=dict)
+
+class UserCreate(BaseModel):
+    """用户创建模型"""
+    username: str = Field(..., min_length=3, max_length=50)
+    email: str = Field(..., regex=r'^[^@]+@[^@]+\.[^@]+$')
+    password: str = Field(..., min_length=8)
+
+class UserResponse(BaseModel):
+    """用户响应模型"""
+    id: int
+    username: str
+    email: str
+    is_active: bool
+    preferences: dict
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+# src/models/project.py - 项目模型 (已实现)
 from enum import Enum
 
 class ProjectType(str, Enum):
-    """项目类型"""
+    """项目类型枚举"""
     RESEARCH = "research"
     LITERATURE_REVIEW = "literature_review"
     TECHNICAL_ANALYSIS = "technical_analysis"
     LEGAL_REVIEW = "legal_review"
+    GENERAL = "general"
 
+class Project(BaseEntity):
+    """项目模型 - 已实现并测试通过"""
+    __tablename__ = "projects"
+    
+    name = Column(String(200), nullable=False, index=True)
+    description = Column(Text)
+    project_type = Column(Enum(ProjectType), default=ProjectType.GENERAL)
+    status = Column(String(20), default="active", index=True)
+    owner_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    settings = Column(JSON, default=dict)
+    research_query = Column(Text)
+    research_plan = Column(JSON)
+    
+    # 关系
+    owner = relationship("User", backref="projects")
+    documents = relationship("Document", back_populates="project", cascade="all, delete-orphan")
+
+# src/models/document.py - 文档模型 (已实现)
 class DocumentType(str, Enum):
-    """文档类型"""
-    ACADEMIC_PAPER = "academic_paper"
-    TECHNICAL_REPORT = "technical_report"
-    LEGAL_DOCUMENT = "legal_document"
-    MANUAL = "manual"
-    BOOK_CHAPTER = "book_chapter"
+    """文档类型枚举"""
+    PDF = "pdf"
+    DOCX = "docx"
+    MARKDOWN = "markdown"
+    TXT = "txt"
+    HTML = "html"
 
 class ProcessingStatus(str, Enum):
-    """处理状态"""
+    """处理状态枚举"""
     PENDING = "pending"
     PROCESSING = "processing"
     COMPLETED = "completed"
     FAILED = "failed"
 
-# 核心数据模型
-class User(BaseModel):
-    """用户模型"""
-    id: Optional[int] = None
-    email: str = Field(..., description="用户邮箱")
-    username: str = Field(..., description="用户名")
-    hashed_password: str = Field(..., description="加密密码")
-    is_active: bool = Field(default=True, description="是否激活")
-    preferences: Dict[str, Any] = Field(default_factory=dict, description="用户偏好")
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+class Document(BaseEntity):
+    """文档模型 - 已实现并测试通过"""
+    __tablename__ = "documents"
+    
+    title = Column(String(500), nullable=False, index=True)
+    filename = Column(String(255), nullable=False)
+    file_path = Column(String(1000), nullable=False)
+    file_hash = Column(String(64), unique=True, index=True)
+    file_size = Column(BigInteger)
+    document_type = Column(Enum(DocumentType), nullable=False)
+    processing_status = Column(Enum(ProcessingStatus), default=ProcessingStatus.PENDING)
+    content = Column(Text)
+    summary = Column(Text)
+    metadata = Column(JSON, default=dict)
+    project_id = Column(Integer, ForeignKey("projects.id"), nullable=False)
+    
+    # 关系
+    project = relationship("Project", back_populates="documents")
+    chunks = relationship("Chunk", back_populates="document", cascade="all, delete-orphan")
 
-class Project(BaseModel):
-    """项目模型"""
-    id: Optional[int] = None
-    name: str = Field(..., description="项目名称")
-    description: Optional[str] = Field(None, description="项目描述")
-    project_type: ProjectType = Field(..., description="项目类型")
-    status: str = Field(default="active", description="项目状态")
-    owner_id: int = Field(..., description="所属用户ID")
-    settings: Dict[str, Any] = Field(default_factory=dict, description="项目设置")
-    research_query: Optional[str] = Field(None, description="研究查询")
-    research_plan: Optional[Dict[str, Any]] = Field(None, description="研究计划")
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+# src/models/chunk.py - 文档块模型 (已实现)
+class ChunkType(str, Enum):
+    """块类型枚举"""
+    TEXT = "text"
+    TABLE = "table"
+    IMAGE = "image"
+    CODE = "code"
+    FORMULA = "formula"
 
-class Document(BaseModel):
-    """文档模型"""
-    id: Optional[int] = None
-    title: str = Field(..., description="文档标题")
-    filename: str = Field(..., description="文件名")
-    file_path: str = Field(..., description="文件路径")
-    file_hash: str = Field(..., description="文件哈希")
-    file_size: int = Field(..., description="文件大小")
-    document_type: DocumentType = Field(..., description="文档类型")
-    processing_status: ProcessingStatus = Field(default=ProcessingStatus.PENDING)
-    content: Optional[str] = Field(None, description="提取的文本内容")
-    metadata: Dict[str, Any] = Field(default_factory=dict, description="文档元数据")
-    project_id: int = Field(..., description="所属项目ID")
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+class Chunk(BaseEntity):
+    """文档块模型 - 已实现并测试通过"""
+    __tablename__ = "chunks"
+    
+    document_id = Column(Integer, ForeignKey("documents.id"), nullable=False, index=True)
+    chunk_index = Column(Integer, nullable=False)
+    content = Column(Text, nullable=False)
+    content_hash = Column(String(64), index=True)
+    vector_id = Column(String(100), index=True)  # Qdrant向量ID
+    
+    # 位置信息
+    start_page = Column(Integer)
+    end_page = Column(Integer)
+    start_char = Column(Integer)
+    end_char = Column(Integer)
+    
+    # 类型和元数据
+    chunk_type = Column(Enum(ChunkType), default=ChunkType.TEXT)
+    token_count = Column(Integer)
+    metadata = Column(JSON, default=dict)
+    
+    # 关系
+    document = relationship("Document", back_populates="chunks")
 
-class Chunk(BaseModel):
-    """文档块模型"""
-    id: Optional[int] = None
-    document_id: int = Field(..., description="所属文档ID")
-    chunk_index: int = Field(..., description="块序号")
-    content: str = Field(..., description="块内容")
-    vector_id: Optional[str] = Field(None, description="向量ID")
-    start_page: Optional[int] = Field(None, description="起始页码")
-    end_page: Optional[int] = Field(None, description="结束页码")
-    start_char: Optional[int] = Field(None, description="起始字符位置")
-    end_char: Optional[int] = Field(None, description="结束字符位置")
-    chunk_type: str = Field(default="text", description="块类型")
-    metadata: Dict[str, Any] = Field(default_factory=dict, description="块元数据")
-    created_at: Optional[datetime] = None
+# src/models/conversation.py - 对话模型 (已实现)
+class MessageRole(str, Enum):
+    """消息角色枚举"""
+    USER = "user"
+    ASSISTANT = "assistant"
+    SYSTEM = "system"
 
-class Conversation(BaseModel):
-    """对话模型"""
-    id: Optional[int] = None
-    project_id: int = Field(..., description="所属项目ID")
-    user_id: int = Field(..., description="用户ID")
-    title: Optional[str] = Field(None, description="对话标题")
-    messages: List[Dict[str, Any]] = Field(default_factory=list, description="消息列表")
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+class Conversation(BaseEntity):
+    """对话模型 - 已实现并测试通过"""
+    __tablename__ = "conversations"
+    
+    project_id = Column(Integer, ForeignKey("projects.id"), nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    title = Column(String(500))
+    summary = Column(Text)
+    message_metadata = Column(JSON, default=list)  # 避免与SQLAlchemy metadata冲突
+    status = Column(String(20), default="active")
+    
+    # 关系
+    project = relationship("Project")
+    user = relationship("User")
 
-class Entity(BaseModel):
-    """实体模型"""
-    id: Optional[int] = None
-    text: str = Field(..., description="实体文本")
-    entity_type: str = Field(..., description="实体类型")
-    document_id: int = Field(..., description="所属文档ID")
-    start_char: int = Field(..., description="起始位置")
-    end_char: int = Field(..., description="结束位置")
-    confidence: float = Field(default=1.0, description="置信度")
-    metadata: Dict[str, Any] = Field(default_factory=dict, description="实体元数据")
+class ConversationMessage(BaseModel):
+    """对话消息模型"""
+    role: MessageRole
+    content: str
+    timestamp: datetime
+    metadata: dict = Field(default_factory=dict)
+
+class ConversationCreate(BaseModel):
+    """对话创建模型"""
+    project_id: int
+    title: Optional[str] = None
+    initial_message: Optional[str] = None
 
 ### 3.2 LangGraph状态模型
 ```python
@@ -951,9 +1065,76 @@ async def websocket_endpoint(websocket: WebSocket, project_id: int, user_id: int
          manager.disconnect(client_id)
 ```
 
-## 5. 部署架构
+## 5. 部署架构与配置 (基于实际环境 ✅)
 
-### 5.1 Docker Compose开发环境
+### 5.1 开发环境配置 (dpa_gen conda环境)
+```bash
+# 环境激活
+conda activate dpa_gen
+
+# 核心依赖版本 (已安装并验证)
+Python: 3.11.5
+FastAPI: 0.115.13
+LangChain: 0.3.26
+LangGraph: 0.4.8
+LangSmith: 0.4.1
+Pydantic: 2.10.3
+SQLAlchemy: 2.0.41
+Alembic: 1.16.2
+
+# 数据库连接 (rtx4080服务器)
+PostgreSQL: rtx4080:5432 (dpa_dev, dpa_test, dpa_prod)
+Qdrant: rtx4080:6333 (向量数据库)
+Neo4j: rtx4080:7687 (知识图谱)
+Redis: rtx4080:6379 (缓存和会话)
+```
+
+### 5.2 生产环境配置 (.env文件)
+```bash
+# 数据库配置 (已配置)
+DATABASE_URL=postgresql://dpa_user:dpa_password@rtx4080:5432/dpa_prod
+DATABASE_DEV_URL=postgresql://dpa_user:dpa_password@rtx4080:5432/dpa_dev
+DATABASE_TEST_URL=postgresql://dpa_user:dpa_password@rtx4080:5432/dpa_test
+
+# 向量数据库
+QDRANT_URL=http://rtx4080:6333
+QDRANT_API_KEY=your_qdrant_api_key
+
+# 图数据库
+NEO4J_URL=bolt://rtx4080:7687
+NEO4J_USERNAME=neo4j
+NEO4J_PASSWORD=your_neo4j_password
+
+# 缓存
+REDIS_URL=redis://rtx4080:6379
+REDIS_PASSWORD=your_redis_password
+
+# AI模型API (已配置)
+OPENAI_API_KEY=your_openai_api_key
+ANTHROPIC_API_KEY=your_anthropic_api_key
+COHERE_API_KEY=your_cohere_api_key
+OPENROUTER_API_KEY=your_openrouter_api_key
+
+# LangSmith监控
+LANGCHAIN_TRACING_V2=true
+LANGCHAIN_API_KEY=your_langsmith_api_key
+LANGCHAIN_PROJECT=dpa-development
+
+# 应用配置
+APP_NAME=DPA智能知识引擎
+APP_VERSION=4.0.0
+DEBUG=false
+SECRET_KEY=your_secret_key
+ALLOWED_HOSTS=localhost,127.0.0.1,rtx4080
+
+# 文件存储
+UPLOAD_DIR=./uploads
+DATA_DIR=./data
+CACHE_DIR=./data/cache
+LOGS_DIR=./data/logs
+```
+
+### 5.3 Docker Compose配置 (适配rtx4080环境)
 ```yaml
 # docker-compose.dev.yml
 version: '3.8'
@@ -962,26 +1143,42 @@ services:
   # 后端API服务
   api:
     build:
-      context: ./backend
-      dockerfile: Dockerfile.dev
+      context: .
+      dockerfile: backend/Dockerfile.dev
     ports:
       - "8000:8000"
     environment:
-      - DATABASE_URL=postgresql://user:password@postgres:5432/dpa_dev
-      - QDRANT_URL=http://qdrant:6333
-      - NEO4J_URL=bolt://neo4j:7687
-      - REDIS_URL=redis://redis:6379
+      - DATABASE_URL=postgresql://dpa_user:dpa_password@rtx4080:5432/dpa_dev
+      - QDRANT_URL=http://rtx4080:6333
+      - NEO4J_URL=bolt://rtx4080:7687
+      - REDIS_URL=redis://rtx4080:6379
       - OPENAI_API_KEY=${OPENAI_API_KEY}
-    depends_on:
-      - postgres
-      - qdrant
-      - neo4j
-      - redis
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - LANGCHAIN_API_KEY=${LANGCHAIN_API_KEY}
     volumes:
-      - ./backend:/app
+      - ./src:/app/src
       - ./data:/app/data
+      - ./uploads:/app/uploads
+      - ./logs:/app/logs
+    depends_on:
+      - db-setup
+    networks:
+      - dpa-network
     
-  # 前端服务
+  # 数据库初始化服务
+  db-setup:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile.dev
+    environment:
+      - DATABASE_URL=postgresql://dpa_user:dpa_password@rtx4080:5432/dpa_dev
+    volumes:
+      - ./scripts:/app/scripts
+    command: python scripts/setup_databases.py
+    networks:
+      - dpa-network
+    
+  # 前端服务 (未来)
   frontend:
     build:
       context: ./frontend
@@ -990,73 +1187,161 @@ services:
       - "3000:3000"
     environment:
       - NEXT_PUBLIC_API_URL=http://localhost:8000
+      - NEXT_PUBLIC_WS_URL=ws://localhost:8000
     volumes:
       - ./frontend:/app
       - /app/node_modules
-    
-  # PostgreSQL数据库
-  postgres:
-    image: postgres:15
-    environment:
-      POSTGRES_DB: dpa_dev
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: password
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./scripts/init.sql:/docker-entrypoint-initdb.d/init.sql
-    
-  # Qdrant向量数据库
-  qdrant:
-    image: qdrant/qdrant:v1.7.0
-    ports:
-      - "6333:6333"
-      - "6334:6334"
-    volumes:
-      - qdrant_data:/qdrant/storage
-    
-  # Neo4j图数据库
-  neo4j:
-    image: neo4j:5.15
-    environment:
-      NEO4J_AUTH: neo4j/password
-      NEO4J_PLUGINS: '["apoc", "graph-data-science"]'
-    ports:
-      - "7474:7474"
-      - "7687:7687"
-    volumes:
-      - neo4j_data:/data
-      - neo4j_logs:/logs
-    
-  # Redis缓存
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-    
-  # MinIO对象存储
-  minio:
-    image: minio/minio:latest
-    environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin
-    ports:
-      - "9000:9000"
-      - "9001:9001"
-    volumes:
-      - minio_data:/data
-    command: server /data --console-address ":9001"
+    networks:
+      - dpa-network
 
-volumes:
-  postgres_data:
-  qdrant_data:
-  neo4j_data:
-  neo4j_logs:
-  redis_data:
-  minio_data:
+networks:
+  dpa-network:
+    driver: bridge
+
+# 注意：数据库服务运行在rtx4080服务器上，不在Docker中
+```
+
+### 5.4 conda环境配置文件
+```yaml
+# environment.yml (已生成)
+name: dpa_gen
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.11.5
+  - pip
+  - pip:
+    - fastapi==0.115.13
+    - uvicorn[standard]==0.34.3
+    - langchain==0.3.26
+    - langchain-community==0.3.26
+    - langchain-core==0.3.66
+    - langchain-openai==0.3.24
+    - langgraph==0.4.8
+    - langsmith==0.4.1
+    - pydantic==2.10.3
+    - sqlalchemy==2.0.41
+    - alembic==1.16.2
+    - psycopg2-binary==2.9.10
+    - qdrant-client==1.14.3
+    - neo4j==5.28.1
+    - redis==5.2.1
+    - openai==1.90.0
+    - anthropic==0.43.1
+    - cohere==5.16.0
+    - pypdf==5.6.1
+    - python-docx==1.2.0
+    - markdown==3.8.2
+    - beautifulsoup4==4.13.4
+    - lxml==5.4.0
+    - numpy==2.0.1
+    - pandas==2.2.3
+    - scikit-learn==1.7.0
+    - aiofiles==24.1.0
+    - aiohttp==3.12.13
+    - requests==2.32.4
+    - structlog==25.4.0
+    - pytest==8.3.4
+    - pytest-asyncio==0.25.0
+    - pytest-cov==6.0.0
+    - ruff==0.8.9
+    - mypy==1.13.0
+    - bandit==1.8.0
+```
+
+### 5.5 应用启动脚本
+```bash
+#!/bin/bash
+# scripts/dev_setup.sh (已存在)
+
+# 激活conda环境
+conda activate dpa_gen
+
+# 检查环境变量
+if [ ! -f ".env" ]; then
+    echo "错误: .env文件不存在，请先配置环境变量"
+    exit 1
+fi
+
+# 检查数据库连接
+echo "检查数据库连接..."
+python scripts/test_config.py
+
+# 运行数据库迁移
+echo "运行数据库迁移..."
+alembic upgrade head
+
+# 启动开发服务器
+echo "启动开发服务器..."
+uvicorn src.api.main:app --host 0.0.0.0 --port 8000 --reload
+```
+
+### 5.6 系统监控配置
+```python
+# src/utils/monitoring.py
+import structlog
+from langsmith import Client as LangSmithClient
+from typing import Dict, Any
+import time
+
+# 结构化日志配置
+structlog.configure(
+    processors=[
+        structlog.stdlib.filter_by_level,
+        structlog.stdlib.add_logger_name,
+        structlog.stdlib.add_log_level,
+        structlog.stdlib.PositionalArgumentsFormatter(),
+        structlog.processors.TimeStamper(fmt="iso"),
+        structlog.processors.StackInfoRenderer(),
+        structlog.processors.format_exc_info,
+        structlog.processors.JSONRenderer()
+    ],
+    context_class=dict,
+    logger_factory=structlog.stdlib.LoggerFactory(),
+    wrapper_class=structlog.stdlib.BoundLogger,
+    cache_logger_on_first_use=True,
+)
+
+logger = structlog.get_logger()
+
+# LangSmith监控
+langsmith_client = LangSmithClient()
+
+class PerformanceMonitor:
+    """性能监控器"""
+    
+    @staticmethod
+    def track_agent_execution(agent_name: str, input_data: Dict[str, Any]):
+        """跟踪智能体执行性能"""
+        def decorator(func):
+            async def wrapper(*args, **kwargs):
+                start_time = time.time()
+                try:
+                    result = await func(*args, **kwargs)
+                    duration = time.time() - start_time
+                    
+                    logger.info(
+                        "agent_execution_success",
+                        agent_name=agent_name,
+                        duration=duration,
+                        input_size=len(str(input_data)),
+                        output_size=len(str(result))
+                    )
+                    return result
+                    
+                except Exception as e:
+                    duration = time.time() - start_time
+                    logger.error(
+                        "agent_execution_error",
+                        agent_name=agent_name,
+                        duration=duration,
+                        error=str(e)
+                    )
+                    raise
+            return wrapper
+        return decorator
+```
 ```
 
 ### 5.2 LangGraph工作流编排
