@@ -4,10 +4,10 @@
 
 from sqlalchemy import Column, String, Boolean, Text
 from sqlalchemy.orm import relationship
-from .base import BaseModel
+from .base import BaseEntity
 
 
-class User(BaseModel):
+class User(BaseEntity):
     """用户模型"""
     __tablename__ = "users"
     

@@ -22,7 +22,7 @@ from ..graphs.research_planning_agent import get_research_planning_agent
 from ..utils.logger import get_logger
 
 # 导入路由
-from .routes import documents, projects, research, knowledge, health
+from .routes import documents, projects, research, knowledge, health, qa, metadata, memory
 
 logger = get_logger(__name__)
 settings = get_settings()
@@ -255,6 +255,9 @@ app.include_router(projects.router, prefix="/api/v1", tags=["项目管理"])
 app.include_router(documents.router, prefix="/api/v1", tags=["文档管理"])
 app.include_router(research.router, prefix="/api/v1", tags=["研究规划"])
 app.include_router(knowledge.router, prefix="/api/v1", tags=["知识管理"])
+app.include_router(qa.router, tags=["知识问答"])  # 已包含/api/v1前缀
+app.include_router(metadata.router, tags=["元数据管理"])  # 已包含/api/v1前缀
+app.include_router(memory.router, tags=["记忆系统"])  # 已包含/api/v1前缀
 
 
 # WebSocket支持（用于实时通信）

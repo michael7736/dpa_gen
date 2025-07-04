@@ -5,7 +5,7 @@ DPA项目配置管理模块
 
 import os
 from typing import List, Optional
-from pydantic import validator
+from pydantic import field_validator
 from pydantic_settings import BaseSettings
 from functools import lru_cache
 
@@ -18,9 +18,7 @@ class DatabaseSettings(BaseSettings):
     pool_timeout: int = 30
     pool_recycle: int = 3600
     
-    class Config:
-        env_prefix = "DATABASE_"
-        extra = "ignore"
+    model_config = {"env_prefix": "DATABASE_", "env_file": ".env", "extra": "ignore"}
 
 
 class QdrantSettings(BaseSettings):
@@ -30,9 +28,7 @@ class QdrantSettings(BaseSettings):
     collection_name: str = "dpa_documents"
     vector_size: int = 1536
     
-    class Config:
-        env_prefix = "QDRANT_"
-        extra = "ignore"
+    model_config = {"env_prefix": "QDRANT_", "env_file": ".env", "extra": "ignore"}
 
 
 class Neo4jSettings(BaseSettings):
@@ -42,9 +38,7 @@ class Neo4jSettings(BaseSettings):
     password: str
     database: str = "neo4j"
     
-    class Config:
-        env_prefix = "NEO4J_"
-        extra = "ignore"
+    model_config = {"env_prefix": "NEO4J_", "env_file": ".env", "extra": "ignore"}
 
 
 class RedisSettings(BaseSettings):
@@ -54,9 +48,7 @@ class RedisSettings(BaseSettings):
     db: int = 0
     cache_ttl: int = 3600
     
-    class Config:
-        env_prefix = "REDIS_"
-        extra = "ignore"
+    model_config = {"env_prefix": "REDIS_", "env_file": ".env", "extra": "ignore"}
 
 
 class AIModelSettings(BaseSettings):
@@ -70,9 +62,7 @@ class AIModelSettings(BaseSettings):
     llm_max_tokens: int = 4000
     llm_top_p: float = 0.9
     
-    class Config:
-        env_prefix = ""
-        extra = "ignore"
+    model_config = {"env_file": ".env", "extra": "ignore"}
 
 
 class FileStorageSettings(BaseSettings):
@@ -83,9 +73,7 @@ class FileStorageSettings(BaseSettings):
     max_file_size: int = 50  # MB
     allowed_file_types: List[str] = ["pdf", "txt", "md", "docx", "doc"]
     
-    class Config:
-        env_prefix = ""
-        extra = "ignore"
+    model_config = {"env_file": ".env", "extra": "ignore"}
 
 
 class CelerySettings(BaseSettings):
@@ -97,9 +85,7 @@ class CelerySettings(BaseSettings):
     accept_content: List[str] = ["json"]
     timezone: str = "Asia/Shanghai"
     
-    class Config:
-        env_prefix = "CELERY_"
-        extra = "ignore"
+    model_config = {"env_prefix": "CELERY_", "env_file": ".env", "extra": "ignore"}
 
 
 class SecuritySettings(BaseSettings):
@@ -110,9 +96,7 @@ class SecuritySettings(BaseSettings):
     jwt_refresh_token_expire_days: int = 7
     bcrypt_rounds: int = 12
     
-    class Config:
-        env_prefix = "JWT_"
-        extra = "ignore"
+    model_config = {"env_prefix": "JWT_", "env_file": ".env", "extra": "ignore"}
 
 
 class BusinessSettings(BaseSettings):
@@ -127,9 +111,7 @@ class BusinessSettings(BaseSettings):
     max_documents_per_project: int = 1000
     max_questions_per_day: int = 1000
     
-    class Config:
-        env_prefix = ""
-        extra = "ignore"
+    model_config = {"env_file": ".env", "extra": "ignore"}
 
 
 class MonitoringSettings(BaseSettings):
@@ -140,9 +122,7 @@ class MonitoringSettings(BaseSettings):
     worker_concurrency: int = 4
     batch_size: int = 10
     
-    class Config:
-        env_prefix = ""
-        extra = "ignore"
+    model_config = {"env_file": ".env", "extra": "ignore"}
 
 
 class AppSettings(BaseSettings):
@@ -171,16 +151,14 @@ class AppSettings(BaseSettings):
     debug_sql: bool = False
     debug_redis: bool = False
     
-    @validator('cors_origins', pre=True)
+    @field_validator('cors_origins', mode='before')
+    @classmethod
     def parse_cors_origins(cls, v):
         if isinstance(v, str):
             return [origin.strip() for origin in v.split(",")]
         return v
     
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
-        extra = "ignore"  # 忽略额外字段
+    model_config = {"env_file": ".env", "env_file_encoding": "utf-8", "extra": "ignore"}
 
 
 class Settings:

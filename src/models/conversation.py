@@ -5,7 +5,7 @@
 from sqlalchemy import Column, String, Text, Integer, ForeignKey, Enum, Float
 from sqlalchemy.orm import relationship
 import enum
-from .base import BaseModel
+from .base import BaseEntity
 
 
 class MessageRole(enum.Enum):
@@ -25,7 +25,7 @@ class MessageType(enum.Enum):
     RISK_ASSESSMENT = "risk_assessment"
 
 
-class Conversation(BaseModel):
+class Conversation(BaseEntity):
     """对话模型"""
     __tablename__ = "conversations"
     
@@ -51,7 +51,7 @@ class Conversation(BaseModel):
         return f"<Conversation(id={self.id}, title='{self.title}', user_id={self.user_id}, messages={self.message_count})>"
 
 
-class Message(BaseModel):
+class Message(BaseEntity):
     """消息模型"""
     __tablename__ = "messages"
     
@@ -79,7 +79,7 @@ class Message(BaseModel):
     relevance_score = Column(Float, nullable=True)  # 相关性评分
     
     # 元数据
-    metadata = Column(Text, nullable=True)  # JSON格式的元数据
+    message_metadata = Column(Text, nullable=True)  # JSON格式的元数据
     
     # 关系
     conversation = relationship("Conversation", back_populates="messages")

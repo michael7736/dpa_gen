@@ -1,50 +1,57 @@
 # DPA智能知识引擎 - Python依赖包
+# 更新于2025年1月 - 基于dpa_gen conda环境
 
 # 核心框架
-fastapi==0.104.1
-uvicorn[standard]==0.24.0
-pydantic==2.5.0
-pydantic-settings==2.1.0
+fastapi>=0.115.13
+uvicorn[standard]>=0.34.3
+pydantic>=2.10.3
+pydantic-settings>=2.10.0
 
-# AI/ML核心库
-langchain==0.1.0
-langchain-community==0.0.10
-langchain-openai==0.0.2
-langchain-experimental==0.0.47
-langgraph==0.0.20
-langsmith==0.0.70
+# AI/ML核心库 - 最新稳定版本
+langchain>=0.3.26
+langchain-community>=0.3.26
+langchain-core>=0.3.66
+langchain-openai>=0.3.24
+langchain-text-splitters>=0.3.8
+langchain-experimental>=0.3.4
+langgraph>=0.4.8
+langgraph-checkpoint>=2.1.0
+langgraph-prebuilt>=0.2.2
+langgraph-sdk>=0.1.70
+langsmith>=0.4.1
 
 # OpenAI和其他LLM
-openai==1.6.1
-anthropic==0.8.1
-cohere==4.37
+openai>=1.90.0
+anthropic>=0.42.0
+cohere>=5.15.0
 
 # 向量数据库
-qdrant-client==1.7.0
+qdrant-client>=1.14.3
 chromadb==0.4.18
 pinecone-client==2.2.4
 
 # 图数据库
-neo4j==5.15.0
+neo4j>=5.28.1
 
 # 关系数据库
-sqlalchemy[asyncio]==2.0.23
-alembic==1.13.1
-asyncpg==0.29.0
-psycopg2-binary==2.9.9
+sqlalchemy>=2.0.41
+alembic>=1.16.2
+psycopg2-binary>=2.9.10
 
 # 数据处理
-pandas==2.1.4
-numpy==1.25.2
-scipy==1.11.4
+numpy>=2.0.1
+pandas>=2.2.3
+scikit-learn>=1.7.0
 
 # 文档处理
-pypdf==3.17.4
-python-docx==1.1.0
+pypdf>=5.6.1
+python-docx>=1.2.0
 unstructured==0.11.8
-python-multipart==0.0.6
-markdown==3.5.1
-aiofiles==23.2.1
+python-multipart>=0.0.17
+markdown>=3.8.2
+beautifulsoup4>=4.13.4
+lxml>=5.4.0
+aiofiles>=24.1.0
 
 # 文本处理
 nltk==3.8.1
@@ -53,44 +60,46 @@ transformers==4.36.2
 sentence-transformers==2.2.2
 
 # 网络和API
-httpx==0.25.2
-aiohttp==3.9.1
-requests==2.31.0
+httpx>=0.28.1
+aiohttp>=3.12.13
+requests>=2.32.4
 
 # 缓存和队列
-redis==5.0.1
+redis>=3.5.3
 celery==5.3.4
 
 # 配置和环境
-python-dotenv==1.0.0
+python-dotenv>=1.0.1
 pyyaml==6.0.1
 toml==0.10.2
 
 # 日志和监控
-structlog==23.2.0
-prometheus-client==0.19.0
+structlog>=25.4.0
+prometheus-client>=0.21.1
 
 # 测试
-pytest==7.4.3
-pytest-asyncio==0.21.1
-pytest-cov==4.1.0
-pytest-mock==3.12.0
+pytest>=8.3.4
+pytest-asyncio>=0.25.0
+pytest-cov>=6.0.0
+pytest-mock>=3.14.0
+pytest-benchmark>=4.0.0
 
 # 代码质量
-ruff==0.1.8
-mypy==1.8.0
-bandit==1.7.5
-black==23.11.0
+ruff>=0.8.6
+mypy>=1.14.0
+bandit>=1.8.0
+black>=24.10.0
+isort>=5.13.2
 
 # 系统监控
 psutil==5.9.6
 
 # 实用工具
-click==8.1.7
+click>=8.1.7
 rich==13.7.0
-tqdm==4.66.1
-python-jose[cryptography]==3.3.0
-passlib[bcrypt]==1.7.4
+tqdm>=4.67.1
+python-jose[cryptography]>=3.3.0
+passlib>=1.7.4
 
 # 开发工具
 pre-commit==3.6.0
@@ -107,4 +116,12 @@ docker==6.1.3
 # transformers[torch]==4.36.2
 
 # 新增的依赖包
-tenacity==8.2.3 
+tenacity>=9.0.0
+asyncio-throttle>=1.0.2
+jinja2>=3.1.4
+types-requests>=2.32.0.20241016
+types-redis>=4.6.0.20241004
+types-psycopg2>=2.9.21.20240819
+python-dateutil>=2.9.0
+pytz>=2024.2
+validators>=0.34.0 

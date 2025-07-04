@@ -1,0 +1,96 @@
+# 测试环境配置
+# 继承自 base.yml
+
+environment: "testing"
+
+# 服务器配置
+server:
+  host: "127.0.0.1"
+  port: 8001  # 不同端口避免冲突
+  reload: false
+  workers: 1
+  
+# 数据库配置（测试数据库）
+database:
+  postgresql:
+    host: "localhost"
+    port: 5432
+    database: "dpa_test"
+    username: "postgres"
+    password: "postgres"
+    pool_size: 5
+    max_overflow: 5
+    
+  qdrant:
+    host: "localhost"
+    port: 6333
+    https: false
+    api_key: null
+    collection_prefix: "test_"  # 测试集合前缀
+    
+  neo4j:
+    uri: "bolt://localhost:7687"
+    username: "neo4j"
+    password: "password"
+    database: "test"
+    
+  redis:
+    host: "localhost"
+    port: 6379
+    db: 1  # 使用不同的数据库
+    password: null
+    
+# 调试配置
+debug:
+  enabled: true
+  sql_echo: false  # 测试时不需要SQL日志
+  profile_queries: false
+  
+# 功能开关（测试环境全部启用）
+feature_flags:
+  use_improved_document_processor: true
+  use_semantic_chunking: true
+  enable_memory_system: true
+  use_knowledge_graph: true
+  enable_pii_detection: true
+  strict_data_validation: true
+  aggressive_caching: false  # 测试时关闭缓存
+  
+# 日志级别
+logging:
+  level: "WARNING"  # 测试时减少日志噪音
+  console_output: false
+  file_output: true
+  test_log_file: "tests/logs/test.log"
+  
+# CORS配置
+cors:
+  allow_origins: ["*"]
+  allow_credentials: true
+  allow_methods: ["*"]
+  allow_headers: ["*"]
+  
+# 测试专用配置
+testing:
+  use_mock_llm: true  # 使用模拟LLM避免API调用
+  use_mock_embeddings: true  # 使用模拟嵌入
+  fast_mode: true  # 跳过耗时操作
+  cleanup_after_test: true  # 测试后清理数据
+  
+# 固定的测试数据
+test_fixtures:
+  test_user_id: "test_user_123"
+  test_project_id: "test_project_456"
+  test_document_id: "test_doc_789"
+  
+# 模拟服务配置
+mock_services:
+  llm_response: "This is a mock LLM response for testing."
+  embedding_dimension: 1536
+  embedding_value: 0.1  # 固定的嵌入值
+  
+# 性能限制（加快测试速度）
+limits:
+  max_file_size_mb: 5  # 测试时限制文件大小
+  max_chunks_per_document: 10  # 限制块数量
+  max_processing_time: 30  # 30秒超时

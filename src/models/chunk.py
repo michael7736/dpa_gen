@@ -4,10 +4,10 @@
 
 from sqlalchemy import Column, String, Text, Integer, ForeignKey, Float, Boolean
 from sqlalchemy.orm import relationship
-from .base import BaseModel
+from .base import BaseEntity
 
 
-class Chunk(BaseModel):
+class Chunk(BaseEntity):
     """文档块模型"""
     __tablename__ = "chunks"
     

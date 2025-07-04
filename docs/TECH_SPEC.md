@@ -300,9 +300,9 @@ def extract_entities_tool(text: str) -> List[dict]:
     
     try:
         import json
-                 return json.loads(result.content)["entities"]
-     except:
-         return []
+        return json.loads(result.content)["entities"]
+    except:
+        return []
 ```
 
 ### 2.2 研究规划智能体 (Research Planning Agent)

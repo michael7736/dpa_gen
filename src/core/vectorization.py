@@ -8,9 +8,9 @@ import asyncio
 from typing import List, Dict, Any, Optional, Tuple
 from dataclasses import dataclass
 import numpy as np
-from langchain.embeddings import OpenAIEmbeddings, HuggingFaceEmbeddings
-from langchain.schema import Document
-from langchain.vectorstores import Qdrant
+from langchain_community.embeddings import OpenAIEmbeddings, HuggingFaceEmbeddings
+from langchain_core.documents import Document
+from langchain_community.vectorstores import Qdrant
 from qdrant_client import QdrantClient
 from qdrant_client.models import Distance, VectorParams, PointStruct
 import uuid

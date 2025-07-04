@@ -1,0 +1,116 @@
+# 生产环境配置
+# 继承自 base.yml
+
+environment: "production"
+
+# 服务器配置
+server:
+  host: "0.0.0.0"
+  port: 8000
+  reload: false
+  workers: 4
+  
+# 数据库配置（生产环境 - rtx4080服务器）
+database:
+  postgresql:
+    host: "rtx4080"
+    port: 5432
+    database: "dpa_prod"
+    username: "${DB_USERNAME}"  # 从环境变量读取
+    password: "${DB_PASSWORD}"  # 从环境变量读取
+    pool_size: 20
+    max_overflow: 30
+    pool_timeout: 30
+    pool_recycle: 3600
+    
+  qdrant:
+    host: "rtx4080"
+    port: 6333
+    https: true
+    api_key: "${QDRANT_API_KEY}"
+    
+  neo4j:
+    uri: "bolt://rtx4080:7687"
+    username: "${NEO4J_USERNAME}"
+    password: "${NEO4J_PASSWORD}"
+    database: "neo4j"
+    
+  redis:
+    host: "rtx4080"
+    port: 6379
+    db: 0
+    password: "${REDIS_PASSWORD}"
+    
+# 调试配置（生产环境关闭）
+debug:
+  enabled: false
+  sql_echo: false
+  profile_queries: false
+  
+# 功能开关（生产环境保守配置）
+feature_flags:
+  use_improved_document_processor: false  # 生产环境暂时使用稳定版
+  use_semantic_chunking: false
+  enable_memory_system: false
+  use_knowledge_graph: false
+  enable_pii_detection: true  # 生产环境启用隐私保护
+  strict_data_validation: true
+  aggressive_caching: true
+  enable_response_streaming: true
+  enable_request_batching: true
+  
+# 日志级别
+logging:
+  level: "INFO"
+  console_output: false
+  file_output: true
+  sentry_dsn: "${SENTRY_DSN}"  # 错误追踪
+  
+# CORS配置（生产环境限制来源）
+cors:
+  allow_origins: ["https://dpa.example.com", "https://app.dpa.example.com"]
+  allow_credentials: true
+  allow_methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+  allow_headers: ["Content-Type", "Authorization"]
+  
+# 安全增强
+security:
+  ssl_redirect: true
+  force_https: true
+  hsts_seconds: 31536000
+  allowed_hosts: ["dpa.example.com", "api.dpa.example.com"]
+  
+# 监控配置
+monitoring:
+  enable_metrics: true
+  enable_tracing: true
+  langsmith:
+    enabled: true
+    project: "dpa-production"
+  prometheus:
+    enabled: true
+    port: 9090
+  
+# 备份配置
+backup:
+  enabled: true
+  schedule: "0 3 * * *"  # 每天凌晨3点
+  retention_days: 30
+  s3_bucket: "${BACKUP_S3_BUCKET}"
+  
+# 限流配置
+rate_limiting:
+  enabled: true
+  requests_per_minute: 60
+  requests_per_hour: 1000
+  
+# CDN配置
+cdn:
+  enabled: true
+  static_url: "https://cdn.dpa.example.com"
+  
+# 缓存配置
+cache:
+  strategy: "aggressive"
+  cdn_cache_control: "public, max-age=3600"
+  api_cache_control: "private, max-age=300"

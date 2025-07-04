@@ -1,0 +1,55 @@
+# 基础配置（所有环境共享）
+app:
+  name: "DPA智能知识引擎"
+  version: "0.4.0"
+  description: "基于大语言模型的智能知识引擎系统"
+  
+# API配置
+api:
+  prefix: "/api/v1"
+  docs_url: "/docs"
+  redoc_url: "/redoc"
+  openapi_url: "/openapi.json"
+  
+# 安全配置
+security:
+  algorithm: "HS256"
+  access_token_expire_minutes: 30
+  refresh_token_expire_days: 7
+  bcrypt_rounds: 12
+  
+# 文档处理配置
+document_processing:
+  supported_types: ["pdf", "docx", "txt", "md"]
+  max_file_size_mb: 100
+  default_chunk_size: 1000
+  default_chunk_overlap: 200
+  min_chunk_size: 100
+  
+# AI模型配置
+ai_models:
+  default_llm: "gpt-4o-mini"
+  default_embedding: "text-embedding-3-large"
+  embedding_dimension: 3072
+  temperature: 0.1
+  max_tokens: 4000
+  
+# 限制配置
+limits:
+  max_projects_per_user: 10
+  max_documents_per_project: 1000
+  max_questions_per_day: 1000
+  max_concurrent_processing: 5
+  
+# 性能配置
+performance:
+  request_timeout: 300
+  worker_concurrency: 4
+  batch_size: 10
+  cache_ttl: 3600
+  
+# 日志配置
+logging:
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  max_file_size: "10MB"
+  backup_count: 5

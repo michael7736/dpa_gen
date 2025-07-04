@@ -1,0 +1,82 @@
+# 开发环境配置
+# 继承自 base.yml
+
+environment: "development"
+
+# 服务器配置
+server:
+  host: "127.0.0.1"
+  port: 8000
+  reload: true
+  workers: 1
+  
+# 数据库配置（本地开发）
+database:
+  postgresql:
+    host: "localhost"
+    port: 5432
+    database: "dpa_dev"
+    username: "postgres"
+    password: "postgres"
+    pool_size: 5
+    max_overflow: 10
+    
+  qdrant:
+    host: "localhost"
+    port: 6333
+    https: false
+    api_key: null
+    
+  neo4j:
+    uri: "bolt://localhost:7687"
+    username: "neo4j"
+    password: "password"
+    database: "neo4j"
+    
+  redis:
+    host: "localhost"
+    port: 6379
+    db: 0
+    password: null
+    
+# 调试配置
+debug:
+  enabled: true
+  sql_echo: true
+  profile_queries: true
+  
+# 功能开关（开发环境）
+feature_flags:
+  use_improved_document_processor: true  # 开发环境启用改进版
+  use_semantic_chunking: true  # 开发环境可以测试
+  enable_memory_system: true
+  use_knowledge_graph: true
+  enable_pii_detection: false
+  aggressive_caching: false  # 开发环境关闭激进缓存
+  
+# 日志级别
+logging:
+  level: "DEBUG"
+  console_output: true
+  file_output: true
+  
+# CORS配置（开发环境允许所有来源）
+cors:
+  allow_origins: ["*"]
+  allow_credentials: true
+  allow_methods: ["*"]
+  allow_headers: ["*"]
+  
+# 监控配置
+monitoring:
+  enable_metrics: true
+  enable_tracing: true
+  langsmith:
+    enabled: true
+    project: "dpa-development"
+    
+# 测试数据
+test_data:
+  create_sample_users: true
+  create_sample_projects: true
+  sample_documents_path: "tests/fixtures/sample_documents/"
