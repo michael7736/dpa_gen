@@ -14,15 +14,17 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from ..config.settings import get_settings
-from ..database.postgresql_client import get_db_session
+from ..database.postgresql import get_db_session
 from ..database.qdrant_client import get_qdrant_manager
 from ..database.neo4j_client import get_neo4j_manager
-from ..graphs.document_processing_agent import get_document_processing_agent
-from ..graphs.research_planning_agent import get_research_planning_agent
+from ..graphs.document_processing_agent_simple import get_document_processing_agent
+# from ..graphs.research_planning_agent import get_research_planning_agent
 from ..utils.logger import get_logger
 
 # 导入路由
-from .routes import documents, projects, research, knowledge, health, qa, metadata, memory
+from .routes import documents, projects, research, knowledge, health, qa, metadata, memory, analysis, enhanced_qa
+from .routes import documents_simple  # 简化的文档路由，用于测试
+from .routes import demo  # 演示路由，展示限流和版本控制
 
 logger = get_logger(__name__)
 settings = get_settings()
@@ -45,7 +47,7 @@ async def lifespan(app: FastAPI):
         
         # 初始化智能体
         doc_agent = get_document_processing_agent()
-        research_agent = get_research_planning_agent()
+        # research_agent = get_research_planning_agent()
         
         logger.info("✅ 智能体初始化完成")
         
@@ -103,11 +105,24 @@ app = FastAPI(
 # 配置CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors.allowed_origins,
+    allow_origins=settings.app.cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# 添加限流中间件
+from .middleware import RateLimitMiddleware, VersioningMiddleware
+
+app.add_middleware(
+    RateLimitMiddleware,
+    requests_per_minute=60,
+    requests_per_hour=1000,
+    requests_per_day=10000
+)
+
+# 添加版本控制中间件
+app.add_middleware(VersioningMiddleware)
 
 
 # 全局异常处理器
@@ -252,12 +267,16 @@ async def health_check():
 # 注册路由
 app.include_router(health.router, prefix="/api/v1", tags=["健康检查"])
 app.include_router(projects.router, prefix="/api/v1", tags=["项目管理"])
-app.include_router(documents.router, prefix="/api/v1", tags=["文档管理"])
+# app.include_router(documents.router, prefix="/api/v1", tags=["文档管理"])  # 原始文档路由
+app.include_router(documents_simple.router, tags=["文档管理"])  # 使用简化版本进行测试
 app.include_router(research.router, prefix="/api/v1", tags=["研究规划"])
 app.include_router(knowledge.router, prefix="/api/v1", tags=["知识管理"])
 app.include_router(qa.router, tags=["知识问答"])  # 已包含/api/v1前缀
+app.include_router(enhanced_qa.router, tags=["增强问答"])  # 已包含/api/v1前缀
 app.include_router(metadata.router, tags=["元数据管理"])  # 已包含/api/v1前缀
 app.include_router(memory.router, tags=["记忆系统"])  # 已包含/api/v1前缀
+app.include_router(analysis.router, tags=["文档分析"])  # 已包含/api/v1前缀
+app.include_router(demo.router, prefix="/api/v1", tags=["演示"])  # 演示限流和版本控制
 
 
 # WebSocket支持（用于实时通信）

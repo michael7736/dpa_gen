@@ -382,4 +382,15 @@ def get_neo4j_manager() -> Neo4jManager:
     global _neo4j_manager
     if _neo4j_manager is None:
         _neo4j_manager = Neo4jManager()
-    return _neo4j_manager 
+    return _neo4j_manager
+
+
+def get_neo4j_driver() -> Neo4jManager:
+    """获取Neo4j驱动（别名）"""
+    return get_neo4j_manager()
+
+
+async def init_neo4j_constraints():
+    """初始化Neo4j约束"""
+    manager = get_neo4j_manager()
+    return await manager.create_indexes() 

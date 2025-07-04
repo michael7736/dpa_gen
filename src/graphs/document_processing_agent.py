@@ -19,7 +19,7 @@ from pydantic import BaseModel, Field
 from ..config.settings import get_settings
 from ..core.chunking import DocumentChunker, ChunkingStrategy
 from ..core.vectorization import VectorStore
-from ..core.knowledge_index import KnowledgeIndex
+from ..core.knowledge_index import KnowledgeIndexer
 from ..database.qdrant_client import QdrantClient
 from ..models.document import Document, DocumentType, ProcessingStatus, DocumentChunk
 from ..models.project import Project

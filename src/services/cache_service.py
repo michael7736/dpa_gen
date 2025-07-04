@@ -5,7 +5,7 @@
 
 import json
 import pickle
-from typing import Any, Optional, Union
+from typing import Any, Dict, Optional, Union
 from datetime import datetime, timedelta
 import asyncio
 from functools import wraps

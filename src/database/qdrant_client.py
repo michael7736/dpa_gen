@@ -20,6 +20,28 @@ from ..utils.logger import get_logger
 logger = get_logger(__name__)
 settings = get_settings()
 
+# 全局实例
+_qdrant_manager: Optional['QdrantManager'] = None
+
+
+def get_qdrant_client() -> 'QdrantManager':
+    """获取Qdrant客户端管理器实例"""
+    global _qdrant_manager
+    if _qdrant_manager is None:
+        _qdrant_manager = QdrantManager()
+    return _qdrant_manager
+
+
+def get_qdrant_manager() -> 'QdrantManager':
+    """获取Qdrant管理器实例（别名）"""
+    return get_qdrant_client()
+
+
+async def init_qdrant_collection(collection_name: str, vector_size: int):
+    """初始化Qdrant集合"""
+    manager = get_qdrant_client()
+    return await manager.create_collection(collection_name, vector_size)
+
 
 class QdrantManager:
     """Qdrant向量数据库管理器"""

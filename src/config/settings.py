@@ -13,6 +13,11 @@ from functools import lru_cache
 class DatabaseSettings(BaseSettings):
     """数据库配置"""
     url: str
+    host: str = "rtx4080"
+    port: int = 5432
+    name: str = "dpa_dev"
+    user: str = "postgres"
+    password: str = ""
     pool_size: int = 20
     max_overflow: int = 30
     pool_timeout: int = 30
@@ -24,6 +29,8 @@ class DatabaseSettings(BaseSettings):
 class QdrantSettings(BaseSettings):
     """Qdrant向量数据库配置"""
     url: str
+    host: str = "rtx4080"
+    port: int = 6333
     api_key: Optional[str] = None
     collection_name: str = "dpa_documents"
     vector_size: int = 1536
@@ -34,6 +41,8 @@ class QdrantSettings(BaseSettings):
 class Neo4jSettings(BaseSettings):
     """Neo4j图数据库配置"""
     url: str
+    host: str = "rtx4080"
+    port: int = 7687
     username: str
     password: str
     database: str = "neo4j"
@@ -44,6 +53,8 @@ class Neo4jSettings(BaseSettings):
 class RedisSettings(BaseSettings):
     """Redis配置"""
     url: str
+    host: str = "rtx4080"
+    port: int = 6379
     password: Optional[str] = None
     db: int = 0
     cache_ttl: int = 3600

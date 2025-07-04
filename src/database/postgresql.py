@@ -173,4 +173,20 @@ async def close_connections():
         sync_engine.dispose()
         sync_engine = None
         
-    logger.info("数据库连接已关闭") 
+    logger.info("数据库连接已关闭")
+
+
+def get_db_session():
+    """获取数据库会话（FastAPI依赖注入）"""
+    SessionLocal = get_sync_session_factory()
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+
+def get_session():
+    """获取同步数据库会话"""
+    SessionLocal = get_sync_session_factory()
+    return SessionLocal() 
