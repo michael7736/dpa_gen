@@ -1,0 +1,87 @@
+version: '3.8'
+
+# 生产环境配置 - 连接到rtx4080服务器的数据库
+services:
+  # DPA API服务（多实例）
+  dpa-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        - BUILD_ENV=production
+    image: dpa:latest
+    restart: always
+    deploy:
+      replicas: 3
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4G
+        reservations:
+          cpus: '1'
+          memory: 2G
+    environment:
+      # 连接到rtx4080服务器
+      DATABASE_URL: postgresql://postgres:${DB_PASSWORD}@rtx4080:5432/${DB_NAME}
+      REDIS_URL: redis://:${REDIS_PASSWORD}@rtx4080:6379/0
+      QDRANT_URL: http://rtx4080:6333
+      NEO4J_URL: bolt://rtx4080:7687
+      NEO4J_USERNAME: ${NEO4J_USERNAME}
+      NEO4J_PASSWORD: ${NEO4J_PASSWORD}
+      # 生产环境配置
+      ENVIRONMENT: production
+      LOG_LEVEL: WARNING
+      # 性能配置
+      WORKERS: 4
+      MAX_CONCURRENT_REQUESTS: 100
+    volumes:
+      - /data/dpa/uploads:/app/data/uploads
+      - /data/dpa/logs:/app/logs
+    networks:
+      - dpa-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Nginx负载均衡器
+  nginx:
+    image: nginx:alpine
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/nginx/nginx.prod.conf:/etc/nginx/nginx.conf:ro
+      - ./deploy/ssl:/etc/nginx/ssl:ro
+      - /data/dpa/nginx-cache:/var/cache/nginx
+    networks:
+      - dpa-network
+    depends_on:
+      - dpa-api
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # 日志收集器
+  fluentd:
+    image: fluent/fluentd:v1.16-debian
+    restart: always
+    volumes:
+      - ./deploy/fluentd/fluent.conf:/fluentd/etc/fluent.conf:ro
+      - /data/dpa/logs:/var/log/dpa:ro
+    networks:
+      - dpa-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  dpa-network:
+    driver: overlay
+    attachable: true

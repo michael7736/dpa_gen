@@ -1,0 +1,87 @@
+# Git
+.git
+.gitignore
+.github
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info
+dist
+build
+.pytest_cache
+.coverage
+htmlcov
+.tox
+.mypy_cache
+.ruff_cache
+
+# Virtual environments
+venv
+env
+ENV
+.venv
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Project specific
+*.log
+logs/
+data/uploads/
+data/processed/
+data/cache/
+*.db
+*.sqlite
+*.sqlite3
+
+# Docker
+docker-compose.override.yml
+Dockerfile.dev
+
+# Documentation
+docs/build/
+*.md
+!README.md
+
+# Tests
+tests/
+test_*.py
+*_test.py
+
+# Scripts (except necessary ones)
+scripts/test_*.py
+scripts/dev_*.sh
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.temp
+
+# Environment files (security)
+.env
+.env.*
+!.env.template
+
+# Notebooks
+*.ipynb
+.ipynb_checkpoints/
+
+# Deployment
+deploy/k8s/secrets/
+deploy/ssl/
+backups/

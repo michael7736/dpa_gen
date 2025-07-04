@@ -1,0 +1,39 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    monitor: 'dpa-monitor'
+
+# 告警规则文件
+rule_files:
+  - "alerts/*.yml"
+
+# 抓取配置
+scrape_configs:
+  # DPA API metrics
+  - job_name: 'dpa-api'
+    static_configs:
+      - targets: ['dpa-api:9090']
+    metrics_path: '/metrics'
+    scrape_interval: 10s
+
+  # Nginx metrics (需要nginx-prometheus-exporter)
+  - job_name: 'nginx'
+    static_configs:
+      - targets: ['nginx-exporter:9113']
+
+  # Redis metrics (需要redis-exporter)  
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis-exporter:9121']
+
+  # Node exporter for system metrics
+  - job_name: 'node'
+    static_configs:
+      - targets: ['node-exporter:9100']
+
+# 告警管理器配置
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ['alertmanager:9093']

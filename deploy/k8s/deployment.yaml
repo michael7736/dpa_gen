@@ -1,0 +1,134 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dpa-api
+  namespace: dpa
+  labels:
+    app: dpa-api
+    version: v1
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: dpa-api
+  template:
+    metadata:
+      labels:
+        app: dpa-api
+        version: v1
+    spec:
+      containers:
+      - name: dpa-api
+        image: dpa:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8000
+          name: http
+        - containerPort: 9090
+          name: metrics
+        env:
+        - name: ENVIRONMENT
+          value: "production"
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: dpa-secrets
+              key: database-url
+        - name: REDIS_URL
+          valueFrom:
+            secretKeyRef:
+              name: dpa-secrets
+              key: redis-url
+        - name: QDRANT_URL
+          valueFrom:
+            configMapKeyRef:
+              name: dpa-config
+              key: qdrant-url
+        - name: NEO4J_URL
+          valueFrom:
+            configMapKeyRef:
+              name: dpa-config
+              key: neo4j-url
+        - name: OPENROUTER_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: dpa-secrets
+              key: openrouter-api-key
+        resources:
+          requests:
+            memory: "2Gi"
+            cpu: "1000m"
+          limits:
+            memory: "4Gi"
+            cpu: "2000m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 30
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 10
+          periodSeconds: 10
+        volumeMounts:
+        - name: data
+          mountPath: /app/data
+        - name: logs
+          mountPath: /app/logs
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: dpa-data-pvc
+      - name: logs
+        persistentVolumeClaim:
+          claimName: dpa-logs-pvc
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dpa-api-service
+  namespace: dpa
+  labels:
+    app: dpa-api
+spec:
+  type: ClusterIP
+  ports:
+  - name: http
+    port: 8000
+    targetPort: 8000
+  - name: metrics
+    port: 9090
+    targetPort: 9090
+  selector:
+    app: dpa-api
+
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: dpa-api-hpa
+  namespace: dpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: dpa-api
+  minReplicas: 3
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80

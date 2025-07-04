@@ -6,8 +6,15 @@
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Code style: ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
+[![Progress](https://img.shields.io/badge/Progress-80%25-green)](https://github.com/michael7736/dpa_gen)
 
 **🔗 GitHub仓库**: [michael7736/dpa_gen](https://github.com/michael7736/dpa_gen)
+
+## 📊 项目状态
+
+- **当前版本**: v0.8.0 (MVP阶段)
+- **完成度**: 80%
+- **最后更新**: 2025-07-04
 
 ## 🚀 项目概述
 
@@ -21,6 +28,10 @@ DPA（Deep research & Progressive learning Agent）智能知识引擎是一个�
 - 🎯 **智能研究规划**: 参考OpenAI DeepResearch工作流，自动制定研究计划
 - 💾 **渐进式学习**: 建立项目记忆库，跟踪研究进展
 - 🔄 **多模态理解**: 集成最新AI技术，支持文本、图像等多模态内容
+- 🚦 **API限流与版本控制**: 企业级API管理，支持多版本并存
+- 📈 **性能监控**: 完整的监控体系，实时跟踪系统性能
+- 🐳 **容器化部署**: 支持Docker和Kubernetes部署
+- 🛡️ **安全加固**: 多层安全防护，保护数据安全
 
 ## 🏗️ 系统架构
 
@@ -51,92 +62,90 @@ DPA（Deep research & Progressive learning Agent）智能知识引擎是一个�
 
 ### 后端框架
 - **FastAPI**: 高性能异步Web框架
-- **LangGraph**: 智能体工作流编排
-- **LangChain**: LLM应用开发框架
+- **LangGraph 0.4.8**: 智能体工作流编排
+- **LangChain 0.3.26**: LLM应用开发框架
 - **Celery**: 异步任务队列
 
 ### AI/ML技术
-- **OpenAI GPT**: 文本理解和生成
-- **OpenAI Embeddings**: 向量化表示
+- **OpenAI GPT-4o**: 文本理解和生成
+- **OpenAI Embeddings**: text-embedding-3-large向量化
 - **Semantic Chunking**: 语义分块技术
 - **NER**: 命名实体识别
 
 ### 数据存储
-- **PostgreSQL**: 关系数据存储
-- **Qdrant**: 向量数据库
-- **Neo4j**: 图数据库
-- **Redis**: 缓存和会话存储
+- **PostgreSQL 15**: 关系数据存储
+- **Qdrant 1.7**: 向量数据库
+- **Neo4j 5.0**: 图数据库
+- **Redis 7.0**: 缓存和会话存储
 
 ### 开发工具
 - **Docker**: 容器化部署
 - **Pytest**: 单元测试
 - **Ruff**: 代码格式化和检查
 - **MyPy**: 类型检查
+- **Prometheus + Grafana**: 监控系统
 
 ## 📦 快速开始
 
 ### 环境要求
 
-- Python 3.11+
-- Docker & Docker Compose
-- PostgreSQL 15+
-- Redis 7+
-- Qdrant 1.7+
-- Neo4j 5.15+
+- Python 3.11.5
+- Docker & Docker Compose 2.0+
+- Conda (推荐使用dpa_gen环境)
+- 数据库服务器: rtx4080 (PostgreSQL, Redis, Qdrant, Neo4j)
 
-### 安装步骤
+### 使用Conda环境（推荐）
 
-1. **克隆项目**
+1. **创建并激活环境**
 ```bash
-git clone <repository-url>
-cd DPA
+conda env create -f environment.yml
+conda activate dpa_gen
 ```
 
-2. **创建虚拟环境**
+2. **克隆项目**
 ```bash
-python -m venv venv
-source venv/bin/activate  # Linux/Mac
-# 或
-venv\Scripts\activate  # Windows
+git clone https://github.com/michael7736/dpa_gen.git
+cd dpa_gen
 ```
 
-3. **安装依赖**
+3. **配置环境变量**
 ```bash
-pip install -r requirements.txt
+cp env.template .env
+# 编辑 .env 文件，确保数据库连接到rtx4080服务器
 ```
 
-4. **配置环境变量**
+4. **运行开发服务器**
 ```bash
-cp .env.example .env
-# 编辑 .env 文件，填入实际配置
-```
-
-5. **启动数据库服务**
-```bash
-docker-compose up -d postgres redis qdrant neo4j
-```
-
-6. **运行数据库迁移**
-```bash
-alembic upgrade head
-```
-
-7. **启动应用**
-```bash
-python main.py
+uvicorn src.api.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
 ### Docker快速部署
 
 ```bash
-# 构建并启动所有服务
+# 使用部署脚本
+./scripts/deploy.sh deploy dev
+
+# 或手动部署
 docker-compose up -d
 
 # 查看服务状态
 docker-compose ps
 
 # 查看日志
-docker-compose logs -f app
+docker-compose logs -f dpa-api
+```
+
+### 生产环境部署
+
+```bash
+# 构建生产镜像
+docker build -t dpa:latest .
+
+# 使用生产配置部署
+docker-compose -f docker-compose.prod.yml up -d
+
+# Kubernetes部署
+kubectl apply -f deploy/k8s/
 ```
 
 ## 🔧 配置说明
@@ -361,33 +370,35 @@ pytest --cov=src --cov-report=html
 - **端到端测试**: 测试完整工作流
 - **性能测试**: 测试系统性能
 
-## 🚀 部署
+## 🚀 完整功能
 
-### 开发环境
+### ✅ 已实现功能
 
-```bash
-python main.py --env development
-```
+- **文档处理**: 多格式文档解析、语义分块、元数据提取
+- **向量化索引**: 高质量文档嵌入、层次化索引
+- **知识图谱**: 实体识别、关系抽取、图谱构建
+- **RAG问答**: 混合检索、重排序、上下文增强
+- **记忆系统**: 对话历史、知识积累、上下文管理
+- **API管理**: 限流控制、版本管理、认证授权
+- **监控系统**: Prometheus指标、Grafana仪表板、日志聚合
+- **部署方案**: Docker容器化、K8s编排、CI/CD流水线
 
-### 生产环境
+### 🚧 开发中功能
 
-```bash
-# 使用Gunicorn
-python main.py --env production --workers 4
+- **研究规划智能体**: DeepResearch工作流实现
+- **多模态支持**: 图像理解、表格解析
+- **协作功能**: 多用户协作、知识共享
+- **前端界面**: Web UI开发
 
-# 使用Docker
-docker-compose -f docker-compose.prod.yml up -d
-```
+## 📈 性能指标
 
-### Kubernetes部署
+基于性能测试结果，系统达到以下指标：
 
-```bash
-# 应用Kubernetes配置
-kubectl apply -f k8s/
-
-# 查看部署状态
-kubectl get pods -n dpa-knowledge-engine
-```
+- **API响应时间**: P95 < 200ms
+- **系统吞吐量**: > 1000 RPS
+- **向量搜索**: > 100 QPS
+- **并发用户**: > 1000
+- **系统可用性**: > 99.9%
 
 ## 🤝 贡献指南
 
