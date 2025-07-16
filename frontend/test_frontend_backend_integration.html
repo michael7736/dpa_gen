@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AAG前后端集成测试</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            margin: 10px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .status {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .loading { background: #fff3cd; color: #856404; }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #0056b3; }
+        .result {
+            background: #f8f9fa;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+            border-left: 4px solid #007bff;
+        }
+        pre {
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            font-size: 12px;
+        }
+        .metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .metric {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            text-align: center;
+        }
+        .metric-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #007bff;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🧠 AAG前后端集成测试</h1>
+        <p>测试AAG智能分析系统的前端和后端API集成功能</p>
+    </div>
+
+    <div class="test-section">
+        <h2>🔗 服务连接测试</h2>
+        <div id="service-status">
+            <p>前端服务 (8230): <span id="frontend-status" class="status loading">检测中...</span></p>
+            <p>后端API (8200): <span id="backend-status" class="status loading">检测中...</span></p>
+        </div>
+        <button onclick="checkServices()">重新检测服务</button>
+    </div>
+
+    <div class="test-section">
+        <h2>📄 文档分析测试</h2>
+        <textarea id="test-document" rows="4" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px;" 
+                  placeholder="输入要分析的文档内容...">人工智能在现代医疗诊断中发挥着越来越重要的作用。机器学习算法能够快速处理大量医学影像数据，帮助医生更准确地诊断疾病。深度学习模型在病理图像识别、癌症筛查和个性化治疗方案制定等方面都展现出了巨大的潜力。然而，AI技术在医疗领域的应用也面临着数据隐私、算法可解释性和医疗责任等挑战。</textarea>
+        <br><br>
+        <button onclick="testSkimAnalysis()">🔍 快速略读</button>
+        <button onclick="testSummaryGeneration()">📝 生成摘要</button>
+        <button onclick="testKnowledgeGraph()">🕸️ 知识图谱</button>
+        <button onclick="testOutlineExtraction()">📋 大纲提取</button>
+        <button onclick="testDeepAnalysis()">🔬 深度分析</button>
+        <button onclick="testCompleteWorkflow()">⚡ 完整工作流</button>
+        
+        <div id="analysis-results"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>📊 性能指标</h2>
+        <div class="metrics">
+            <div class="metric">
+                <div class="metric-value" id="total-requests">0</div>
+                <div>总请求数</div>
+            </div>
+            <div class="metric">
+                <div class="metric-value" id="successful-requests">0</div>
+                <div>成功请求</div>
+            </div>
+            <div class="metric">
+                <div class="metric-value" id="avg-response-time">0ms</div>
+                <div>平均响应时间</div>
+            </div>
+            <div class="metric">
+                <div class="metric-value" id="error-rate">0%</div>
+                <div>错误率</div>
+            </div>
+        </div>
+        <button onclick="runPerformanceTest()">🚀 性能测试</button>
+        <button onclick="resetMetrics()">🔄 重置指标</button>
+    </div>
+
+    <div class="test-section">
+        <h2>🛡️ 错误处理测试</h2>
+        <button onclick="testErrorHandling()">测试错误处理</button>
+        <button onclick="testInvalidRequests()">测试无效请求</button>
+        <div id="error-test-results"></div>
+    </div>
+
+    <script>
+        let metrics = {
+            totalRequests: 0,
+            successfulRequests: 0,
+            responseTimes: [],
+            errors: 0
+        };
+
+        const API_BASE_URL = 'http://localhost:8200';
+        const FRONTEND_URL = 'http://localhost:8230';
+
+        // 服务连接检测
+        async function checkServices() {
+            // 检测前端服务
+            try {
+                const frontendResponse = await fetch(FRONTEND_URL);
+                document.getElementById('frontend-status').textContent = '✅ 正常运行';
+                document.getElementById('frontend-status').className = 'status success';
+            } catch (error) {
+                document.getElementById('frontend-status').textContent = '❌ 连接失败';
+                document.getElementById('frontend-status').className = 'status error';
+            }
+
+            // 检测后端API
+            try {
+                const backendResponse = await fetch(`${API_BASE_URL}/health`);
+                const result = await backendResponse.json();
+                document.getElementById('backend-status').textContent = `✅ ${result.service} v${result.version}`;
+                document.getElementById('backend-status').className = 'status success';
+            } catch (error) {
+                document.getElementById('backend-status').textContent = '❌ 连接失败';
+                document.getElementById('backend-status').className = 'status error';
+            }
+        }
+
+        // API请求工具函数
+        async function makeAPIRequest(endpoint, data = null, method = 'GET') {
+            const startTime = Date.now();
+            metrics.totalRequests++;
+
+            try {
+                const options = {
+                    method,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-USER-ID': 'test_user'
+                    }
+                };
+
+                if (data) {
+                    options.body = JSON.stringify(data);
+                }
+
+                const response = await fetch(`${API_BASE_URL}${endpoint}`, options);
+                const endTime = Date.now();
+                const responseTime = endTime - startTime;
+                
+                metrics.responseTimes.push(responseTime);
+
+                if (response.ok) {
+                    metrics.successfulRequests++;
+                    const result = await response.json();
+                    updateMetrics();
+                    return { success: true, data: result, responseTime };
+                } else {
+                    metrics.errors++;
+                    updateMetrics();
+                    return { success: false, error: `HTTP ${response.status}`, responseTime };
+                }
+            } catch (error) {
+                const endTime = Date.now();
+                const responseTime = endTime - startTime;
+                metrics.errors++;
+                metrics.responseTimes.push(responseTime);
+                updateMetrics();
+                return { success: false, error: error.message, responseTime };
+            }
+        }
+
+        // 显示结果
+        function displayResult(title, result, responseTime) {
+            const resultsDiv = document.getElementById('analysis-results');
+            const resultElement = document.createElement('div');
+            resultElement.className = 'result';
+            
+            const statusClass = result.success ? 'success' : 'error';
+            const statusText = result.success ? '✅ 成功' : '❌ 失败';
+            
+            resultElement.innerHTML = `
+                <h4>${title} <span class="status ${statusClass}">${statusText}</span> <small>(${responseTime}ms)</small></h4>
+                <pre>${JSON.stringify(result.data || result.error, null, 2)}</pre>
+            `;
+            
+            resultsDiv.insertBefore(resultElement, resultsDiv.firstChild);
+        }
+
+        // 分析功能测试
+        async function testSkimAnalysis() {
+            const content = document.getElementById('test-document').value;
+            const request = {
+                document_id: `test_${Date.now()}`,
+                document_content: content,
+                analysis_type: 'standard'
+            };
+
+            const result = await makeAPIRequest('/api/v1/aag/skim', request, 'POST');
+            displayResult('快速略读分析', result, result.responseTime);
+        }
+
+        async function testSummaryGeneration() {
+            const content = document.getElementById('test-document').value;
+            const request = {
+                document_id: `test_${Date.now()}`,
+                document_content: content,
+                options: { summary_level: 'level_2' }
+            };
+
+            const result = await makeAPIRequest('/api/v1/aag/summary', request, 'POST');
+            displayResult('摘要生成', result, result.responseTime);
+        }
+
+        async function testKnowledgeGraph() {
+            const content = document.getElementById('test-document').value;
+            const request = {
+                document_id: `test_${Date.now()}`,
+                document_content: content,
+                options: { extraction_mode: 'comprehensive' }
+            };
+
+            const result = await makeAPIRequest('/api/v1/aag/knowledge-graph', request, 'POST');
+            displayResult('知识图谱构建', result, result.responseTime);
+        }
+
+        async function testOutlineExtraction() {
+            const content = document.getElementById('test-document').value;
+            const request = {
+                document_id: `test_${Date.now()}`,
+                document_content: content,
+                options: { dimension: 'multi' }
+            };
+
+            const result = await makeAPIRequest('/api/v1/aag/outline', request, 'POST');
+            displayResult('大纲提取', result, result.responseTime);
+        }
+
+        async function testDeepAnalysis() {
+            const content = document.getElementById('test-document').value;
+            const request = {
+                document_id: `test_${Date.now()}`,
+                document_content: content,
+                options: { analysis_types: ['evidence_chain', 'critical_thinking', 'cross_reference'] }
+            };
+
+            const result = await makeAPIRequest('/api/v1/aag/deep-analysis', request, 'POST');
+            displayResult('深度分析', result, result.responseTime);
+        }
+
+        async function testCompleteWorkflow() {
+            const content = document.getElementById('test-document').value;
+            const documentId = `workflow_test_${Date.now()}`;
+            
+            const request = {
+                workflow_id: 'standard_analysis',
+                document_id: documentId,
+                initial_state: {
+                    document_content: content
+                }
+            };
+
+            const result = await makeAPIRequest('/api/v1/aag/workflow/standard_analysis/execute', request, 'POST');
+            displayResult('完整工作流执行', result, result.responseTime);
+        }
+
+        // 性能测试
+        async function runPerformanceTest() {
+            const testDocument = {
+                document_id: `perf_test_${Date.now()}`,
+                document_content: document.getElementById('test-document').value
+            };
+
+            // 并发测试
+            const concurrentTests = [];
+            for (let i = 0; i < 5; i++) {
+                concurrentTests.push(
+                    makeAPIRequest('/api/v1/aag/skim', {
+                        ...testDocument,
+                        document_id: `${testDocument.document_id}_${i}`
+                    }, 'POST')
+                );
+            }
+
+            await Promise.all(concurrentTests);
+            alert('性能测试完成！查看指标面板了解详情。');
+        }
+
+        // 错误处理测试
+        async function testErrorHandling() {
+            const errorTestsDiv = document.getElementById('error-test-results');
+            errorTestsDiv.innerHTML = '<h4>错误处理测试结果:</h4>';
+
+            // 测试无效数据
+            const invalidRequest = await makeAPIRequest('/api/v1/aag/skim', { invalid: 'data' }, 'POST');
+            errorTestsDiv.innerHTML += `<p>无效数据测试: ${invalidRequest.success ? '❌ 应该失败' : '✅ 正确处理'}</p>`;
+
+            // 测试不存在的端点
+            const notFoundRequest = await makeAPIRequest('/api/v1/aag/nonexistent');
+            errorTestsDiv.innerHTML += `<p>不存在端点测试: ${notFoundRequest.error?.includes('404') ? '✅ 正确返回404' : '❌ 错误处理异常'}</p>`;
+
+            // 测试空请求
+            const emptyRequest = await makeAPIRequest('/api/v1/aag/skim', {}, 'POST');
+            errorTestsDiv.innerHTML += `<p>空请求测试: ${emptyRequest.success ? '❌ 应该失败' : '✅ 正确处理'}</p>`;
+        }
+
+        async function testInvalidRequests() {
+            // 测试各种无效请求场景
+            const tests = [
+                { name: '缺少必需字段', data: { document_content: 'test' } },
+                { name: '空文档内容', data: { document_id: 'test', document_content: '' } },
+                { name: '格式错误的JSON', endpoint: '/api/v1/aag/skim', raw: 'invalid json' }
+            ];
+
+            const errorTestsDiv = document.getElementById('error-test-results');
+            errorTestsDiv.innerHTML += '<h4>无效请求测试:</h4>';
+
+            for (const test of tests) {
+                if (test.raw) {
+                    // 特殊处理原始数据
+                    try {
+                        const response = await fetch(`${API_BASE_URL}${test.endpoint}`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: test.raw
+                        });
+                        errorTestsDiv.innerHTML += `<p>${test.name}: ${response.ok ? '❌ 应该失败' : '✅ 正确处理'}</p>`;
+                    } catch (error) {
+                        errorTestsDiv.innerHTML += `<p>${test.name}: ✅ 正确处理异常</p>`;
+                    }
+                } else {
+                    const result = await makeAPIRequest('/api/v1/aag/skim', test.data, 'POST');
+                    errorTestsDiv.innerHTML += `<p>${test.name}: ${result.success ? '❌ 应该失败' : '✅ 正确处理'}</p>`;
+                }
+            }
+        }
+
+        // 更新指标显示
+        function updateMetrics() {
+            document.getElementById('total-requests').textContent = metrics.totalRequests;
+            document.getElementById('successful-requests').textContent = metrics.successfulRequests;
+            
+            if (metrics.responseTimes.length > 0) {
+                const avgTime = Math.round(metrics.responseTimes.reduce((a, b) => a + b, 0) / metrics.responseTimes.length);
+                document.getElementById('avg-response-time').textContent = `${avgTime}ms`;
+            }
+            
+            const errorRate = metrics.totalRequests > 0 ? Math.round((metrics.errors / metrics.totalRequests) * 100) : 0;
+            document.getElementById('error-rate').textContent = `${errorRate}%`;
+        }
+
+        function resetMetrics() {
+            metrics = {
+                totalRequests: 0,
+                successfulRequests: 0,
+                responseTimes: [],
+                errors: 0
+            };
+            updateMetrics();
+        }
+
+        // 页面加载时自动检测服务
+        window.onload = function() {
+            checkServices();
+        };
+    </script>
+</body>
+</html>

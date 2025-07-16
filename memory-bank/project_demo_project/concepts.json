@@ -1,0 +1,32 @@
+[
+  {
+    "name": "CNN",
+    "category": "neural_network",
+    "description": "卷积神经网络，专门用于图像处理",
+    "confidence": 0.9,
+    "first_seen": "2025-07-12T23:37:29.716978",
+    "last_seen": "2025-07-12T23:37:29.716978",
+    "frequency": 1,
+    "relationships": []
+  },
+  {
+    "name": "RNN",
+    "category": "neural_network",
+    "description": "循环神经网络，处理序列数据",
+    "confidence": 0.85,
+    "first_seen": "2025-07-12T23:37:29.716981",
+    "last_seen": "2025-07-12T23:37:29.716981",
+    "frequency": 1,
+    "relationships": []
+  },
+  {
+    "name": "Transformer",
+    "category": "neural_network",
+    "description": "基于注意力机制的架构",
+    "confidence": 0.95,
+    "first_seen": "2025-07-12T23:37:29.716983",
+    "last_seen": "2025-07-12T23:37:29.716983",
+    "frequency": 1,
+    "relationships": []
+  }
+]

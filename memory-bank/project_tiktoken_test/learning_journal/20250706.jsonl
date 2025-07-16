@@ -1,0 +1,2 @@
+{"timestamp": "2025-07-06T01:30:56.042199", "event_type": "learn", "content": "Context updated with 603 characters", "metadata": {"source": "document:MemeoryOpenai.txt", "size": 603}, "impact_score": 0.0}
+{"timestamp": "2025-07-06T01:30:56.046480", "event_type": "learn", "content": "Added 10 new concepts, updated 0", "metadata": {"added": 10, "updated": 0, "total": 10}, "impact_score": 0.0}

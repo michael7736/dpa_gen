@@ -1,0 +1,73 @@
+{
+  "test_time": "2025-07-16T09:30:13.562104",
+  "results": {
+    "upload": [
+      {
+        "filename": "test_upload.md",
+        "test_case": "仅上传",
+        "status": "✅ 成功",
+        "duration": "2.18秒",
+        "document_id": "5ec3e004-ab9c-40af-9ed3-0837fddfc628",
+        "size": 774
+      },
+      {
+        "filename": "test_chinese.md",
+        "test_case": "仅上传",
+        "status": "✅ 成功",
+        "duration": "0.49秒",
+        "document_id": "bf34cff2-4466-4ad0-916c-6ceb80dba49a",
+        "size": 892
+      },
+      {
+        "filename": "test_large.md",
+        "test_case": "仅上传",
+        "status": "✅ 成功",
+        "duration": "0.08秒",
+        "document_id": "f0cc1fbf-7df5-4368-a7f7-da50f334f094",
+        "size": 14431
+      }
+    ],
+    "summary": [
+      {
+        "document_id": "5ec3e004-ab9c-40af-9ed3-0837fddfc628",
+        "status": "✅ 成功",
+        "duration": "7.97秒",
+        "summary_length": 117,
+        "summary_preview": "该文档详细介绍了最新的机器学习算法及其在各个领域的应用，包括图像识别、自然语言处理和数据预测。文中分析了不同算法的优缺点，并提供了实际案例以展示其有效性。此外，文档还讨论了未来的发展趋势和潜在挑战，强..."
+      },
+      {
+        "document_id": "bf34cff2-4466-4ad0-916c-6ceb80dba49a",
+        "status": "✅ 成功",
+        "duration": "7.82秒",
+        "summary_length": 135,
+        "summary_preview": "该文档详细介绍了最新的人工智能技术及其在各行业中的应用，包括医疗、金融和制造业。文中探讨了AI的基本概念、发展历程以及当前的技术趋势。同时，分析了AI在提升效率、降低成本和改善用户体验方面的潜力。最后..."
+      }
+    ],
+    "index": [
+      {
+        "document_id": "5ec3e004-ab9c-40af-9ed3-0837fddfc628",
+        "status": "✅ 成功",
+        "duration": "2.42秒",
+        "index_completed": true
+      },
+      {
+        "document_id": "bf34cff2-4466-4ad0-916c-6ceb80dba49a",
+        "status": "✅ 成功",
+        "duration": "1.81秒",
+        "index_completed": true
+      }
+    ],
+    "analysis": [
+      {
+        "document_id": "5ec3e004-ab9c-40af-9ed3-0837fddfc628",
+        "status": "❌ 获取失败",
+        "error": "{\"error\":\"文档尚未进行深度分析\",\"status_code\":404,\"request_id\":\"512315f5-2b4e-4146-be85-19d6e3e040e8\"}"
+      }
+    ]
+  },
+  "uploaded_documents": [
+    "5ec3e004-ab9c-40af-9ed3-0837fddfc628",
+    "bf34cff2-4466-4ad0-916c-6ceb80dba49a",
+    "f0cc1fbf-7df5-4368-a7f7-da50f334f094"
+  ]
+}

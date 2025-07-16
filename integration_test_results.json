@@ -1,0 +1,149 @@
+{
+  "test_time": "2025-07-15T08:28:58.796316",
+  "total_duration": 7.257674932479858,
+  "summary": {
+    "total": 10,
+    "success": 9,
+    "failed": 1,
+    "error": 0,
+    "success_rate": 90.0
+  },
+  "categories": {
+    "连通性": {
+      "success": 2,
+      "failed": 0,
+      "error": 0
+    },
+    "AAG": {
+      "success": 1,
+      "failed": 0,
+      "error": 0
+    },
+    "问答性能": {
+      "success": 2,
+      "failed": 1,
+      "error": 0
+    },
+    "文档操作": {
+      "success": 1,
+      "failed": 0,
+      "error": 0
+    },
+    "项目操作": {
+      "success": 1,
+      "failed": 0,
+      "error": 0
+    },
+    "数据库": {
+      "success": 2,
+      "failed": 0,
+      "error": 0
+    }
+  },
+  "details": [
+    {
+      "category": "连通性",
+      "test_name": "健康检查",
+      "status": "success",
+      "details": {
+        "status": "healthy",
+        "services": {
+          "qdrant": "healthy",
+          "neo4j": "healthy",
+          "api": "healthy"
+        }
+      },
+      "error": null,
+      "timestamp": "2025-07-15T08:28:51.844395"
+    },
+    {
+      "category": "连通性",
+      "test_name": "API文档",
+      "status": "success",
+      "details": {},
+      "error": null,
+      "timestamp": "2025-07-15T08:28:51.846306"
+    },
+    {
+      "category": "AAG",
+      "test_name": "略读分析",
+      "status": "success",
+      "details": {
+        "response_time": 4.546643018722534,
+        "has_result": true
+      },
+      "error": null,
+      "timestamp": "2025-07-15T08:28:56.393274"
+    },
+    {
+      "category": "问答性能",
+      "test_name": "超快速问答",
+      "status": "success",
+      "details": {
+        "average_time": 0.6878820260365804,
+        "target_met": true,
+        "test_count": 3
+      },
+      "error": null,
+      "timestamp": "2025-07-15T08:28:58.457704"
+    },
+    {
+      "category": "问答性能",
+      "test_name": "MVP问答",
+      "status": "failed",
+      "details": {},
+      "error": null,
+      "timestamp": "2025-07-15T08:28:58.484430"
+    },
+    {
+      "category": "问答性能",
+      "test_name": "简化问答",
+      "status": "success",
+      "details": {
+        "response_time": 0.02284407615661621
+      },
+      "error": null,
+      "timestamp": "2025-07-15T08:28:58.507396"
+    },
+    {
+      "category": "文档操作",
+      "test_name": "获取文档列表",
+      "status": "success",
+      "details": {
+        "document_count": 5
+      },
+      "error": null,
+      "timestamp": "2025-07-15T08:28:58.525884"
+    },
+    {
+      "category": "项目操作",
+      "test_name": "获取项目列表",
+      "status": "success",
+      "details": {
+        "project_count": 0
+      },
+      "error": null,
+      "timestamp": "2025-07-15T08:28:58.771841"
+    },
+    {
+      "category": "数据库",
+      "test_name": "qdrant连接",
+      "status": "success",
+      "details": {
+        "status": "healthy"
+      },
+      "error": null,
+      "timestamp": "2025-07-15T08:28:58.796217"
+    },
+    {
+      "category": "数据库",
+      "test_name": "neo4j连接",
+      "status": "success",
+      "details": {
+        "status": "healthy"
+      },
+      "error": null,
+      "timestamp": "2025-07-15T08:28:58.796226"
+    }
+  ]
+}

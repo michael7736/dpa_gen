@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel, Field
 
 from ...database.postgresql import get_db_session
-from ...models.base import Project
+from ...models.project import Project
 from ...utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -21,6 +21,7 @@ class ProjectCreate(BaseModel):
     """创建项目请求"""
     name: str = Field(..., min_length=1, max_length=200)
     description: Optional[str] = None
+    type: Optional[str] = None  # 项目类型
     metadata: Optional[Dict[str, Any]] = None
 
 
@@ -37,14 +38,23 @@ class ProjectResponse(BaseModel):
     id: str
     name: str
     description: Optional[str]
-    metadata: Optional[Dict[str, Any]]
-    is_active: bool
+    status: str = "active"
     created_at: datetime
     updated_at: datetime
+    user_id: str
     document_count: int = 0
     
     class Config:
         from_attributes = True
+
+
+class PaginatedProjectResponse(BaseModel):
+    """分页项目响应"""
+    items: List[ProjectResponse]
+    total: int
+    page: int
+    page_size: int
+    total_pages: int
 
 
 @router.post("", response_model=ProjectResponse)
@@ -63,10 +73,37 @@ async def create_project(
             )
         
         # 创建项目
+        # TODO: 实现用户认证后，从请求中获取用户ID
+        # 暂时使用默认用户
+        from ...models.user import User
+        default_user = db.query(User).filter(User.email == "default@dpa.ai").first()
+        if not default_user:
+            raise HTTPException(status_code=500, detail="默认用户不存在")
+        
+        # 处理项目类型
+        from ...models.project import ProjectType
+        project_type = None
+        if project.type:
+            try:
+                # 根据名称或值匹配枚举
+                if project.type.upper() in [e.name for e in ProjectType]:
+                    # 通过名称匹配（大写）
+                    project_type = ProjectType[project.type.upper()]
+                else:
+                    # 通过值匹配（小写）
+                    project_type = ProjectType(project.type.lower())
+                logger.info(f"项目类型: {project.type} -> {project_type.name}")
+            except (ValueError, KeyError):
+                # 如果无效的类型，使用默认值
+                project_type = ProjectType.RESEARCH
+                logger.warning(f"无效的项目类型: {project.type}, 使用默认值: {project_type.name}")
+        
         db_project = Project(
             name=project.name,
             description=project.description,
-            metadata=project.metadata or {}
+            type=project_type or ProjectType.RESEARCH,
+            metadata=project.metadata or {},
+            user_id=default_user.id
         )
         
         db.add(db_project)
@@ -79,10 +116,10 @@ async def create_project(
             id=str(db_project.id),
             name=db_project.name,
             description=db_project.description,
-            metadata=db_project.metadata,
-            is_active=db_project.is_active,
+            status=db_project.status.value if hasattr(db_project.status, 'value') else db_project.status,
             created_at=db_project.created_at,
             updated_at=db_project.updated_at,
+            user_id=str(db_project.user_id),
             document_count=0
         )
         
@@ -94,10 +131,10 @@ async def create_project(
         raise HTTPException(status_code=500, detail="创建项目失败")
 
 
-@router.get("", response_model=List[ProjectResponse])
+@router.get("", response_model=PaginatedProjectResponse)
 async def list_projects(
-    skip: int = Query(0, ge=0),
-    limit: int = Query(10, ge=1, le=100),
+    page: int = Query(1, ge=1, description="页码"),
+    page_size: int = Query(10, ge=1, le=100, description="每页数量"),
     is_active: Optional[bool] = None,
     search: Optional[str] = None,
     db: Session = Depends(get_db_session)
@@ -108,7 +145,8 @@ async def list_projects(
         
         # 过滤条件
         if is_active is not None:
-            query = query.filter(Project.is_active == is_active)
+            # TODO: 根据 status 字段过滤
+            pass
         
         if search:
             query = query.filter(
@@ -116,14 +154,21 @@ async def list_projects(
                 Project.description.ilike(f"%{search}%")
             )
         
+        # 获取总数
+        total = query.count()
+        
+        # 计算分页
+        skip = (page - 1) * page_size
+        total_pages = (total + page_size - 1) // page_size if total > 0 else 0
+        
         # 排序和分页
-        projects = query.order_by(Project.created_at.desc()).offset(skip).limit(limit).all()
+        projects = query.order_by(Project.created_at.desc()).offset(skip).limit(page_size).all()
         
         # 转换响应
         result = []
         for project in projects:
             # 获取文档数量
-            from ...models.base import Document
+            from ...models.document import Document
             doc_count = db.query(Document).filter(
                 Document.project_id == project.id,
                 Document.is_deleted == False
@@ -133,14 +178,20 @@ async def list_projects(
                 id=str(project.id),
                 name=project.name,
                 description=project.description,
-                metadata=project.metadata,
-                is_active=project.is_active,
+                status=project.status.value if hasattr(project.status, 'value') else project.status,
                 created_at=project.created_at,
                 updated_at=project.updated_at,
+                user_id=str(project.user_id),
                 document_count=doc_count
             ))
         
-        return result
+        return PaginatedProjectResponse(
+            items=result,
+            total=total,
+            page=page,
+            page_size=page_size,
+            total_pages=total_pages
+        )
         
     except Exception as e:
         logger.error(f"获取项目列表失败: {e}")
@@ -160,7 +211,7 @@ async def get_project(
             raise HTTPException(status_code=404, detail="项目不存在")
         
         # 获取文档数量
-        from ...models.base import Document
+        from ...models.document import Document
         doc_count = db.query(Document).filter(
             Document.project_id == project.id,
             Document.is_deleted == False
@@ -170,10 +221,10 @@ async def get_project(
             id=str(project.id),
             name=project.name,
             description=project.description,
-            metadata=project.metadata,
-            is_active=project.is_active,
+            status=project.status.value if hasattr(project.status, 'value') else project.status,
             created_at=project.created_at,
             updated_at=project.updated_at,
+            user_id=str(project.user_id),
             document_count=doc_count
         )
         
@@ -210,7 +261,7 @@ async def update_project(
         logger.info(f"更新项目成功: {project.id}")
         
         # 获取文档数量
-        from ...models.base import Document
+        from ...models.document import Document
         doc_count = db.query(Document).filter(
             Document.project_id == project.id,
             Document.is_deleted == False
@@ -220,10 +271,10 @@ async def update_project(
             id=str(project.id),
             name=project.name,
             description=project.description,
-            metadata=project.metadata,
-            is_active=project.is_active,
+            status=project.status.value if hasattr(project.status, 'value') else project.status,
             created_at=project.created_at,
             updated_at=project.updated_at,
+            user_id=str(project.user_id),
             document_count=doc_count
         )
         
@@ -249,7 +300,7 @@ async def delete_project(
             raise HTTPException(status_code=404, detail="项目不存在")
         
         # 检查是否有关联文档
-        from ...models.base import Document
+        from ...models.document import Document
         doc_count = db.query(Document).filter(
             Document.project_id == project.id,
             Document.is_deleted == False
@@ -299,7 +350,8 @@ async def get_project_statistics(
             raise HTTPException(status_code=404, detail="项目不存在")
         
         # 获取统计数据
-        from ...models.base import Document, Chunk
+        from ...models.document import Document
+        from ...models.chunk import Chunk
         from ...models.memory import Memory, ProjectMemory
         from sqlalchemy import func
         

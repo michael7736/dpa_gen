@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>文档结果查看测试</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .document-card {
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+        .action-button {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-right: 8px;
+        }
+        .action-button:hover {
+            background: #2563eb;
+        }
+        .view-button {
+            background: #10b981;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .view-button:hover {
+            background: #059669;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+        .modal-content {
+            background-color: white;
+            margin: 5% auto;
+            padding: 20px;
+            border-radius: 8px;
+            width: 80%;
+            max-width: 800px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #666;
+        }
+        .close:hover {
+            color: #000;
+        }
+        .status-completed {
+            color: #10b981;
+            font-weight: bold;
+        }
+        .summary-content {
+            background: #f8fafc;
+            padding: 16px;
+            border-radius: 6px;
+            border-left: 4px solid #3b82f6;
+            line-height: 1.6;
+        }
+        .metadata {
+            background: #f1f5f9;
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 16px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📄 文档处理结果查看</h1>
+        <p>选择一个文档，完成摘要或索引操作后可以查看结果</p>
+
+        <!-- 文档列表 -->
+        <div class="document-card">
+            <h3>🔬 test_websocket_content.md</h3>
+            <p>文档ID: 4e5cf860-e9c2-463a-972a-ed1c329d415b</p>
+            <p>状态: <span class="status-completed">已完成摘要</span></p>
+            
+            <div style="margin-top: 16px;">
+                <button class="action-button" onclick="generateSummary()">生成摘要</button>
+                <button class="action-button" onclick="createIndex()">创建索引</button>
+                <button class="action-button" onclick="deepAnalysis()">深度分析</button>
+            </div>
+            
+            <div style="margin-top: 12px;">
+                <button class="view-button" onclick="viewSummary()">📖 查看摘要</button>
+                <button class="view-button" onclick="viewIndex()">🔍 查看索引</button>
+                <button class="view-button" onclick="viewAnalysis()">🧠 查看分析</button>
+            </div>
+        </div>
+
+        <!-- 另一个文档示例 -->
+        <div class="document-card">
+            <h3>📊 integration_test.md</h3>
+            <p>文档ID: 03d1c451-b98c-45c7-8945-8e05fcd79e23</p>
+            <p>状态: <span class="status-completed">已完成摘要</span></p>
+            
+            <div style="margin-top: 16px;">
+                <button class="action-button" onclick="generateSummary2()">生成摘要</button>
+                <button class="action-button" onclick="createIndex2()">创建索引</button>
+                <button class="action-button" onclick="deepAnalysis2()">深度分析</button>
+            </div>
+            
+            <div style="margin-top: 12px;">
+                <button class="view-button" onclick="viewSummary2()">📖 查看摘要</button>
+                <button class="view-button" onclick="viewIndex2()">🔍 查看索引</button>
+                <button class="view-button" onclick="viewAnalysis2()">🧠 查看分析</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 结果查看模态框 -->
+    <div id="resultModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalTitle">查看结果</h2>
+                <button class="close" onclick="closeModal()">&times;</button>
+            </div>
+            <div id="modalContent">
+                <p>加载中...</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8200'
+        const DOCUMENT_ID_1 = '4e5cf860-e9c2-463a-972a-ed1c329d415b'
+        const DOCUMENT_ID_2 = '03d1c451-b98c-45c7-8945-8e05fcd79e23'
+
+        async function apiRequest(url, options = {}) {
+            const response = await fetch(url, {
+                ...options,
+                headers: {
+                    'X-USER-ID': 'u1',
+                    'Content-Type': 'application/json',
+                    ...options.headers
+                }
+            })
+            
+            if (!response.ok) {
+                throw new Error(`API请求失败: ${response.status}`)
+            }
+            
+            return response.json()
+        }
+
+        function showModal(title, content) {
+            document.getElementById('modalTitle').textContent = title
+            document.getElementById('modalContent').innerHTML = content
+            document.getElementById('resultModal').style.display = 'block'
+        }
+
+        function closeModal() {
+            document.getElementById('resultModal').style.display = 'none'
+        }
+
+        // 文档1的操作
+        async function generateSummary() {
+            try {
+                const result = await apiRequest(`${API_BASE}/api/v1/documents/${DOCUMENT_ID_1}/operations/start`, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        generate_summary: true,
+                        create_index: false,
+                        deep_analysis: false
+                    })
+                })
+                alert('摘要生成已启动，请稍后查看结果')
+            } catch (error) {
+                alert('操作失败: ' + error.message)
+            }
+        }
+
+        async function createIndex() {
+            try {
+                const result = await apiRequest(`${API_BASE}/api/v1/documents/${DOCUMENT_ID_1}/operations/start`, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        generate_summary: false,
+                        create_index: true,
+                        deep_analysis: false
+                    })
+                })
+                alert('索引创建已启动，请稍后查看结果')
+            } catch (error) {
+                alert('操作失败: ' + error.message)
+            }
+        }
+
+        async function deepAnalysis() {
+            try {
+                const result = await apiRequest(`${API_BASE}/api/v1/documents/${DOCUMENT_ID_1}/operations/start`, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        generate_summary: false,
+                        create_index: false,
+                        deep_analysis: true
+                    })
+                })
+                alert('深度分析已启动，请稍后查看结果')
+            } catch (error) {
+                alert('操作失败: ' + error.message)
+            }
+        }
+
+        async function viewSummary() {
+            try {
+                const result = await apiRequest(`${API_BASE}/api/v1/documents/${DOCUMENT_ID_1}/summary`)
+                const content = `
+                    <div class="metadata">
+                        <strong>文档:</strong> ${result.filename}<br>
+                        <strong>生成时间:</strong> ${new Date(result.generated_at).toLocaleString('zh-CN')}
+                    </div>
+                    <div class="summary-content">
+                        ${result.summary}
+                    </div>
+                `
+                showModal('📖 文档摘要', content)
+            } catch (error) {
+                showModal('❌ 错误', `<p style="color: red;">获取摘要失败: ${error.message}</p>`)
+            }
+        }
+
+        async function viewIndex() {
+            try {
+                const result = await apiRequest(`${API_BASE}/api/v1/documents/${DOCUMENT_ID_1}/operations/status`)
+                const indexCompleted = result.operations_summary.index_completed
+                const content = `
+                    <div class="metadata">
+                        <strong>文档ID:</strong> ${result.document_id}<br>
+                        <strong>索引状态:</strong> ${indexCompleted ? '✅ 已完成' : '⏳ 未完成'}
+                    </div>
+                    <div class="summary-content">
+                        ${indexCompleted ? 
+                            '✅ 文档已成功建立向量索引<br>✅ 支持语义搜索和智能检索<br>✅ 可用于问答和知识查询' : 
+                            '⏳ 索引尚未创建，请先创建索引'
+                        }
+                    </div>
+                `
+                showModal('🔍 索引信息', content)
+            } catch (error) {
+                showModal('❌ 错误', `<p style="color: red;">获取索引信息失败: ${error.message}</p>`)
+            }
+        }
+
+        async function viewAnalysis() {
+            try {
+                const result = await apiRequest(`${API_BASE}/api/v1/documents/${DOCUMENT_ID_1}/analysis`)
+                const content = `
+                    <div class="metadata">
+                        <strong>分析ID:</strong> ${result.analysis_id}<br>
+                        <strong>分析深度:</strong> ${result.analysis_depth}<br>
+                        <strong>状态:</strong> ${result.status}<br>
+                        <strong>创建时间:</strong> ${new Date(result.created_at).toLocaleString('zh-CN')}
+                    </div>
+                    
+                    ${result.result.executive_summary ? `
+                        <h4>执行摘要</h4>
+                        <div class="summary-content">
+                            ${result.result.executive_summary}
+                        </div>
+                    ` : ''}
+                    
+                    ${result.result.key_insights && result.result.key_insights.length > 0 ? `
+                        <h4>关键洞察</h4>
+                        <ul>
+                            ${result.result.key_insights.map(insight => `<li>${insight}</li>`).join('')}
+                        </ul>
+                    ` : ''}
+                    
+                    ${result.result.action_items && result.result.action_items.length > 0 ? `
+                        <h4>行动建议</h4>
+                        <ul>
+                            ${result.result.action_items.map(item => `<li>${item}</li>`).join('')}
+                        </ul>
+                    ` : ''}
+                `
+                showModal('🧠 深度分析结果', content)
+            } catch (error) {
+                showModal('❌ 错误', `<p style="color: red;">获取分析结果失败: ${error.message}</p>`)
+            }
+        }
+
+        // 文档2的操作（类似的函数）
+        async function generateSummary2() {
+            try {
+                const result = await apiRequest(`${API_BASE}/api/v1/documents/${DOCUMENT_ID_2}/operations/start`, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        generate_summary: true,
+                        create_index: false,
+                        deep_analysis: false
+                    })
+                })
+                alert('摘要生成已启动，请稍后查看结果')
+            } catch (error) {
+                alert('操作失败: ' + error.message)
+            }
+        }
+
+        async function createIndex2() {
+            try {
+                const result = await apiRequest(`${API_BASE}/api/v1/documents/${DOCUMENT_ID_2}/operations/start`, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        generate_summary: false,
+                        create_index: true,
+                        deep_analysis: false
+                    })
+                })
+                alert('索引创建已启动，请稍后查看结果')
+            } catch (error) {
+                alert('操作失败: ' + error.message)
+            }
+        }
+
+        async function deepAnalysis2() {
+            try {
+                const result = await apiRequest(`${API_BASE}/api/v1/documents/${DOCUMENT_ID_2}/operations/start`, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        generate_summary: false,
+                        create_index: false,
+                        deep_analysis: true
+                    })
+                })
+                alert('深度分析已启动，请稍后查看结果')
+            } catch (error) {
+                alert('操作失败: ' + error.message)
+            }
+        }
+
+        async function viewSummary2() {
+            try {
+                const result = await apiRequest(`${API_BASE}/api/v1/documents/${DOCUMENT_ID_2}/summary`)
+                const content = `
+                    <div class="metadata">
+                        <strong>文档:</strong> ${result.filename}<br>
+                        <strong>生成时间:</strong> ${new Date(result.generated_at).toLocaleString('zh-CN')}
+                    </div>
+                    <div class="summary-content">
+                        ${result.summary}
+                    </div>
+                `
+                showModal('📖 文档摘要', content)
+            } catch (error) {
+                showModal('❌ 错误', `<p style="color: red;">获取摘要失败: ${error.message}</p>`)
+            }
+        }
+
+        async function viewIndex2() {
+            try {
+                const result = await apiRequest(`${API_BASE}/api/v1/documents/${DOCUMENT_ID_2}/operations/status`)
+                const indexCompleted = result.operations_summary.index_completed
+                const content = `
+                    <div class="metadata">
+                        <strong>文档ID:</strong> ${result.document_id}<br>
+                        <strong>索引状态:</strong> ${indexCompleted ? '✅ 已完成' : '⏳ 未完成'}
+                    </div>
+                    <div class="summary-content">
+                        ${indexCompleted ? 
+                            '✅ 文档已成功建立向量索引<br>✅ 支持语义搜索和智能检索<br>✅ 可用于问答和知识查询' : 
+                            '⏳ 索引尚未创建，请先创建索引'
+                        }
+                    </div>
+                `
+                showModal('🔍 索引信息', content)
+            } catch (error) {
+                showModal('❌ 错误', `<p style="color: red;">获取索引信息失败: ${error.message}</p>`)
+            }
+        }
+
+        async function viewAnalysis2() {
+            try {
+                const result = await apiRequest(`${API_BASE}/api/v1/documents/${DOCUMENT_ID_2}/analysis`)
+                const content = `
+                    <div class="metadata">
+                        <strong>分析ID:</strong> ${result.analysis_id}<br>
+                        <strong>分析深度:</strong> ${result.analysis_depth}<br>
+                        <strong>状态:</strong> ${result.status}<br>
+                        <strong>创建时间:</strong> ${new Date(result.created_at).toLocaleString('zh-CN')}
+                    </div>
+                    
+                    ${result.result.executive_summary ? `
+                        <h4>执行摘要</h4>
+                        <div class="summary-content">
+                            ${result.result.executive_summary}
+                        </div>
+                    ` : ''}
+                    
+                    ${result.result.key_insights && result.result.key_insights.length > 0 ? `
+                        <h4>关键洞察</h4>
+                        <ul>
+                            ${result.result.key_insights.map(insight => `<li>${insight}</li>`).join('')}
+                        </ul>
+                    ` : ''}
+                    
+                    ${result.result.action_items && result.result.action_items.length > 0 ? `
+                        <h4>行动建议</h4>
+                        <ul>
+                            ${result.result.action_items.map(item => `<li>${item}</li>`).join('')}
+                        </ul>
+                    ` : ''}
+                `
+                showModal('🧠 深度分析结果', content)
+            } catch (error) {
+                showModal('❌ 错误', `<p style="color: red;">获取分析结果失败: ${error.message}</p>`)
+            }
+        }
+
+        // 点击模态框外部关闭
+        window.onclick = function(event) {
+            const modal = document.getElementById('resultModal')
+            if (event.target === modal) {
+                closeModal()
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,46 @@
+# Neo4j用户实例模板
+# 使用时替换 ${USER_ID}, ${BOLT_PORT}, ${HTTP_PORT}, ${PASSWORD}
+version: '3.8'
+
+services:
+  neo4j_${USER_ID}:
+    image: neo4j:5-community
+    container_name: dpa_neo4j_${USER_ID}
+    ports:
+      - "${BOLT_PORT}:7687"
+      - "${HTTP_PORT}:7474"
+    environment:
+      - NEO4J_AUTH=neo4j/${PASSWORD}
+      - NEO4J_server_memory_heap_initial__size=256M
+      - NEO4J_server_memory_heap_max__size=${HEAP_SIZE:-512M}
+      - NEO4J_server_memory_pagecache_size=${CACHE_SIZE:-256M}
+      - NEO4J_db_tx__timeout=30s
+      - NEO4J_db_lock_acquisition_timeout=30s
+    volumes:
+      - neo4j_data_${USER_ID}:/data
+      - neo4j_logs_${USER_ID}:/logs
+      - neo4j_conf_${USER_ID}:/conf
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "neo4j", "status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - dpa_network
+    labels:
+      - "dpa.user_id=${USER_ID}"
+      - "dpa.service=neo4j"
+      - "dpa.managed=true"
+
+volumes:
+  neo4j_data_${USER_ID}:
+    name: dpa_neo4j_data_${USER_ID}
+  neo4j_logs_${USER_ID}:
+    name: dpa_neo4j_logs_${USER_ID}
+  neo4j_conf_${USER_ID}:
+    name: dpa_neo4j_conf_${USER_ID}
+
+networks:
+  dpa_network:
+    external: true

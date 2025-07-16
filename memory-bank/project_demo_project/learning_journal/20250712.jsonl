@@ -1,0 +1,6 @@
+{"timestamp": "2025-07-12T23:05:21.003041", "event_type": "learn", "content": "Context updated with 361 characters", "metadata": {"source": "document:test_doc.txt", "size": 361}, "impact_score": 0.0}
+{"timestamp": "2025-07-12T23:05:22.011371", "event_type": "learn", "content": "Project demo_project initialized", "metadata": {"action": "initialize"}, "impact_score": 0.0}
+{"timestamp": "2025-07-12T23:05:22.013568", "event_type": "learn", "content": "Added 2 new concepts, updated 0", "metadata": {"added": 2, "updated": 0, "total": 2}, "impact_score": 0.0}
+{"timestamp": "2025-07-12T23:37:29.714591", "event_type": "learn", "content": "Project demo_project initialized", "metadata": {"action": "initialize"}, "impact_score": 0.0}
+{"timestamp": "2025-07-12T23:37:29.715783", "event_type": "learn", "content": "Context updated with 68 characters", "metadata": {"source": "learning_notes", "size": 68}, "impact_score": 0.0}
+{"timestamp": "2025-07-12T23:37:29.717564", "event_type": "learn", "content": "Added 3 new concepts, updated 0", "metadata": {"added": 3, "updated": 0, "total": 3}, "impact_score": 0.0}

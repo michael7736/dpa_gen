@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>简化CORS测试</title>
+</head>
+<body>
+    <h1>DPA CORS测试</h1>
+    <div id="status">正在测试...</div>
+    <div id="result"></div>
+
+    <script>
+        async function testCORS() {
+            const statusDiv = document.getElementById('status');
+            const resultDiv = document.getElementById('result');
+            
+            try {
+                statusDiv.innerHTML = '正在测试不带凭据的请求...';
+                
+                // 测试不带凭据的请求
+                const response = await fetch('http://localhost:8200/api/v1/projects', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-USER-ID': 'u1'
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    statusDiv.innerHTML = '✅ 不带凭据的请求成功！';
+                    resultDiv.innerHTML = `<h3>响应数据:</h3><pre>${JSON.stringify(data, null, 2)}</pre>`;
+                } else {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+            } catch (error) {
+                statusDiv.innerHTML = '❌ 请求失败';
+                resultDiv.innerHTML = `<h3>错误信息:</h3><pre>${error.message}</pre>`;
+                console.error('CORS Test Error:', error);
+            }
+        }
+
+        // 页面加载后自动测试
+        window.onload = testCORS;
+    </script>
+</body>
+</html>

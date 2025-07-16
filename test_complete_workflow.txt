@@ -1,0 +1,35 @@
+DPA智能知识引擎测试文档
+
+这是一个用于测试完整文档处理流程的示例文档。
+
+1. 系统概述
+DPA（Document Processing Agent）是一个基于LangGraph和LangChain构建的智能文档处理系统。
+系统支持多种文档格式，包括PDF、Word、文本文件等。
+
+2. 主要功能
+- 文档上传和存储
+- 智能文本分块
+- 向量化索引
+- 语义搜索
+- 智能问答
+- 深度分析
+
+3. 技术架构
+后端: Python, FastAPI, LangChain
+前端: Next.js, React, TypeScript
+数据库: PostgreSQL, Qdrant, Neo4j
+存储: MinIO对象存储
+
+4. 处理流程
+用户上传文档 → 文件存储到MinIO → 文本提取 → 智能分块 → 向量化 → 索引构建 → 可供查询
+
+5. 测试要点
+本次测试将验证：
+- 文件上传功能
+- 处理选项传递
+- 实时进度显示
+- WebSocket通信
+- 错误处理机制
+
+测试时间：2025-07-13
+版本：v2.0

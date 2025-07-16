@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from ...database.postgresql import get_db_session
-from ...models.memory import (
+from ...models.memory_schemas import (
     MemoryCreate, MemoryUpdate, MemoryQuery,
     ProjectMemoryUpdate, UserPreferenceUpdate,
     MemoryType, MemoryScope

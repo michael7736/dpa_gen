@@ -11,7 +11,7 @@ from typing import Dict, Any
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from ...database.qdrant_client import get_qdrant_manager
+from ...database.qdrant import get_qdrant_manager
 from ...database.neo4j_client import get_neo4j_manager
 from ...utils.logger import get_logger
 

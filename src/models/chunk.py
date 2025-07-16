@@ -4,6 +4,7 @@
 
 from sqlalchemy import Column, String, Text, Integer, ForeignKey, Float, Boolean
 from sqlalchemy.orm import relationship
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from .base import BaseEntity
 
 
@@ -12,7 +13,7 @@ class Chunk(BaseEntity):
     __tablename__ = "chunks"
     
     # 关联文档
-    document_id = Column(Integer, ForeignKey("documents.id"), nullable=False, index=True)
+    document_id = Column(PG_UUID(as_uuid=True), ForeignKey("documents.id"), nullable=False, index=True)
     
     # 块信息
     chunk_index = Column(Integer, nullable=False, index=True)  # 在文档中的序号

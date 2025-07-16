@@ -3,15 +3,15 @@
 支持增量更新和灵活的元数据管理
 """
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional, List, Dict, Any, Literal
 from enum import Enum
 from pydantic import BaseModel, Field, validator
 from sqlalchemy import Column, String, Text, Integer, Float, DateTime, Boolean, JSON, ForeignKey, Table
 from sqlalchemy.orm import relationship
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import JSONB, UUID as PG_UUID
 
-from .base import BaseEntity
+from .base import BaseEntity, Base
 
 
 class DocumentSource(str, Enum):
@@ -37,11 +37,11 @@ class DocumentMetadata(BaseEntity):
     __tablename__ = "document_metadata"
     
     # 关联字段
-    document_id = Column(String, ForeignKey("documents.id"), unique=True, nullable=False)
-    document = relationship("Document", back_populates="metadata")
+    document_id = Column(PG_UUID(as_uuid=True), ForeignKey("documents.id"), unique=True, nullable=False)
+    # document = relationship("Document", back_populates="document_metadata")
     
     # 基础元数据
-    project_id = Column(String, ForeignKey("projects.id"), index=True, comment="所属项目")
+    project_id = Column(PG_UUID(as_uuid=True), ForeignKey("projects.id"), index=True, comment="所属项目")
     directory_path = Column(String, comment="所在目录路径")
     
     # 引用关系 - 使用JSONB存储复杂关系
@@ -78,14 +78,20 @@ class DocumentMetadata(BaseEntity):
     reviewed_by = Column(String, comment="审核人")
     reviewed_at = Column(DateTime(timezone=True), comment="审核时间")
     review_notes = Column(Text, comment="审核备注")
+    
+    # 处理相关元数据
+    processing_history = Column(JSONB, default=list, comment="处理历史记录")
+    summary_metadata = Column(JSONB, default=dict, comment="摘要生成元数据")
+    index_metadata = Column(JSONB, default=dict, comment="索引创建元数据")
+    analysis_metadata = Column(JSONB, default=dict, comment="分析结果元数据")
 
 
 # 文档引用关系表（多对多）
 document_references = Table(
     'document_references',
-    BaseEntity.metadata,
-    Column('citing_document_id', String, ForeignKey('documents.id'), primary_key=True),
-    Column('cited_document_id', String, ForeignKey('documents.id'), primary_key=True),
+    Base.metadata,
+    Column('citing_document_id', PG_UUID(as_uuid=True), ForeignKey('documents.id'), primary_key=True),
+    Column('cited_document_id', PG_UUID(as_uuid=True), ForeignKey('documents.id'), primary_key=True),
     Column('reference_type', String, comment="引用类型"),
     Column('reference_context', Text, comment="引用上下文"),
     Column('created_at', DateTime(timezone=True), default=datetime.now)

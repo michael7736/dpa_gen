@@ -10,7 +10,9 @@ from sqlalchemy import and_, or_, func
 from sqlalchemy.orm import Session
 
 from ..models.memory import (
-    Memory, ProjectMemory, UserMemory, ConversationMemory,
+    Memory, ProjectMemory, UserMemory, ConversationMemory
+)
+from ..models.memory_schemas import (
     MemoryType, MemoryScope,
     MemoryCreate, MemoryUpdate, MemoryQuery,
     ProjectMemoryUpdate, UserPreferenceUpdate

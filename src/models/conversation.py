@@ -4,6 +4,7 @@
 
 from sqlalchemy import Column, String, Text, Integer, ForeignKey, Enum, Float
 from sqlalchemy.orm import relationship
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 import enum
 from .base import BaseEntity
 
@@ -32,8 +33,8 @@ class Conversation(BaseEntity):
     title = Column(String(200), nullable=False, index=True)
     
     # 关联用户和项目
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
-    project_id = Column(Integer, ForeignKey("projects.id"), nullable=True, index=True)
+    user_id = Column(PG_UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True)
+    project_id = Column(PG_UUID(as_uuid=True), ForeignKey("projects.id"), nullable=True, index=True)
     
     # 对话配置
     settings = Column(Text, nullable=True)  # JSON格式的对话设置
@@ -46,6 +47,7 @@ class Conversation(BaseEntity):
     user = relationship("User", back_populates="conversations")
     project = relationship("Project", back_populates="conversations")
     messages = relationship("Message", back_populates="conversation", cascade="all, delete-orphan")
+    # memories = relationship("ConversationMemory", back_populates="conversation", cascade="all, delete-orphan")
     
     def __repr__(self):
         return f"<Conversation(id={self.id}, title='{self.title}', user_id={self.user_id}, messages={self.message_count})>"
@@ -56,7 +58,7 @@ class Message(BaseEntity):
     __tablename__ = "messages"
     
     # 关联对话
-    conversation_id = Column(Integer, ForeignKey("conversations.id"), nullable=False, index=True)
+    conversation_id = Column(PG_UUID(as_uuid=True), ForeignKey("conversations.id"), nullable=False, index=True)
     
     # 消息信息
     role = Column(Enum(MessageRole), nullable=False, index=True)

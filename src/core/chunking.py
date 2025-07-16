@@ -16,7 +16,7 @@ from pydantic import BaseModel, Field
 
 from ..config.settings import get_settings
 from ..core.vectorization import VectorStore
-from ..models.document import DocumentChunk
+from ..models.chunk import Chunk as DocumentChunk
 from ..utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -31,6 +31,8 @@ class ChunkingStrategy(str, Enum):
     SLIDING_WINDOW = "sliding_window"   # 滑动窗口分块
     PARAGRAPH = "paragraph"             # 段落分块
     SENTENCE = "sentence"               # 句子分块
+    SENTENCE_BASED = "sentence_based"   # 智能句子边界分块
+    HYBRID = "hybrid"                   # 混合智能分块（优化检索）
 
 
 class ChunkingConfig(BaseModel):
@@ -239,7 +241,12 @@ class SemanticChunker(BaseChunker):
     
     def __init__(self, config: ChunkingConfig):
         super().__init__(config)
-        self.vector_store = VectorStore() if config.use_embeddings else None
+        if config.use_embeddings:
+            from .vectorization import EmbeddingService, VectorConfig
+            vector_config = VectorConfig()
+            self.embedding_service = EmbeddingService(vector_config)
+        else:
+            self.embedding_service = None
     
     async def chunk_text(
         self,
@@ -302,7 +309,7 @@ class SemanticChunker(BaseChunker):
         
         # 生成句子嵌入向量
         sentence_texts = [sent[0] for sent in sentences]
-        embeddings = await self.vector_store.embed_texts(sentence_texts)
+        embeddings = await self.embedding_service.embed_documents(sentence_texts)
         
         # 计算相邻句子的相似度
         similarities = []
@@ -706,6 +713,30 @@ class DocumentChunker:
                 self._chunkers[strategy] = StructuralChunker(config)
             elif strategy == ChunkingStrategy.PARAGRAPH:
                 self._chunkers[strategy] = ParagraphChunker(config)
+            elif strategy == ChunkingStrategy.SENTENCE_BASED:
+                # 延迟导入以避免循环导入
+                from .document.sentence_based_chunker import SentenceBasedChunker, SentenceBasedConfig
+                # 创建句子分块配置
+                sentence_config = SentenceBasedConfig(
+                    strategy=strategy,
+                    max_tokens=config.chunk_size,  # 使用chunk_size作为max_tokens
+                    sentence_overlap=max(1, config.chunk_overlap // 100),  # 转换为句子数
+                    **{k: v for k, v in config.dict().items() 
+                       if k not in ['strategy', 'chunk_size', 'chunk_overlap']}
+                )
+                self._chunkers[strategy] = SentenceBasedChunker(sentence_config)
+            elif strategy == ChunkingStrategy.HYBRID:
+                # 使用混合分块器
+                from .document.hybrid_chunker import HybridChunker, HybridChunkingConfig
+                # 创建混合分块配置
+                hybrid_config = HybridChunkingConfig(
+                    strategy=strategy,
+                    chunk_size=config.chunk_size,
+                    chunk_overlap=config.chunk_overlap,
+                    **{k: v for k, v in config.dict().items() 
+                       if k not in ['strategy', 'chunk_size', 'chunk_overlap']}
+                )
+                self._chunkers[strategy] = HybridChunker(hybrid_config)
             else:
                 # 默认使用固定大小分块
                 self._chunkers[strategy] = FixedSizeChunker(config)

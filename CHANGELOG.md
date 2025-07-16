@@ -7,13 +7,177 @@
 
 ## [未发布]
 
-### 计划中
-- 文档处理智能体实现
-- 研究规划工作流完善
-- 前端用户界面
-- 性能优化和缓存
+### 新增 (2025-01-14)
+- 🧠 **AAG (Analysis-Augmented Generation) 核心分析模块**
+  - ✅ 快速略读功能 (SkimmerAgent)
+    - 文档类型自动识别（学术/技术/商业等）
+    - 文档质量评估（高/中/低）
+    - 50字核心价值提取
+    - 3-5个关键要点识别
+    - 智能分析建议推荐
+  - ✅ 渐进式摘要功能 (ProgressiveSummaryAgent)
+    - 5级层次化摘要体系（50/200/500/1000/2000字）
+    - 高级别摘要可参考低级别内容
+    - 智能缓存避免重复生成
+    - 结构化输出（关键点、章节、建议）
+  - ✅ 知识图谱构建功能 (KnowledgeGraphAgent)
+    - 三种提取模式：quick（快速）、focused（聚焦）、comprehensive（全面）
+    - 7种实体类型：人物、组织、概念、技术、地点、事件、产品
+    - 8种关系类型：定义、包含、影响、对比、使用、创建、属于、相关
+    - 实体去重和标准化处理
+    - Neo4j Cypher语句导出支持
+    - 知识图谱统计分析（核心节点、类型分布等）
+  - 📊 AAG存储和管理层
+    - ArtifactStore: 分析结果持久化存储
+    - MetadataManager: 元数据版本管理
+    - 完整的分析状态跟踪
+  - 🌐 AAG RESTful API
+    - POST /api/v1/aag/skim - 文档快速略读
+    - POST /api/v1/aag/summary - 生成单级别摘要
+    - POST /api/v1/aag/summary/all - 生成全部级别摘要
+    - POST /api/v1/aag/knowledge-graph - 构建知识图谱
+    - POST /api/v1/aag/knowledge-graph/export - 导出知识图谱
+    - GET /api/v1/aag/artifacts/{document_id} - 获取分析物料
+    - GET /api/v1/aag/metadata/{document_id} - 获取文档元数据
 
-## [0.1.0] - 2024-01-XX
+### 改进 (2025-01-14)
+- 实现了BaseAgent基类，提供标准化的Agent开发框架
+- 所有Agent支持性能指标记录和缓存机制
+- 提供了完整的prompt模板管理系统
+
+  - ✅ 多维大纲提取功能 (OutlineAgent)
+    - 四个分析维度：逻辑、主题、时间、因果
+    - 支持单维度和全维度提取
+    - 文档结构综合分析
+    - 结果缓存优化
+  - ✅ 深度分析Agent集合
+    - 证据链分析 (EvidenceChainAnalyzer)：识别声明、评估证据强度、追踪证据链
+    - 交叉引用分析 (CrossReferenceAnalyzer)：内部引用关系、概念一致性、引用网络
+    - 批判性思维分析 (CriticalThinkingAnalyzer)：论点分析、假设识别、偏见检测
+    - 综合深度分析器 (DeepAnalyzer)：协调多个分析Agent，生成综合报告
+  - 🌐 新增深度分析API端点
+    - POST /api/v1/aag/outline - 多维大纲提取
+    - POST /api/v1/aag/outline/structure-analysis - 文档结构分析
+    - POST /api/v1/aag/deep-analysis - 综合深度分析
+    - POST /api/v1/aag/deep-analysis/evidence-chain - 证据链分析
+    - POST /api/v1/aag/deep-analysis/cross-reference - 交叉引用分析
+    - POST /api/v1/aag/deep-analysis/critical-thinking - 批判性思维分析
+  - ✅ 分析规划Agent (PlannerAgent)
+    - 智能分析计划制定，基于文档特征和用户目标
+    - 6种预定义分析目标（快速概览、深度理解、批判性审查等）
+    - 自动文档类别识别（学术、技术、商业等）
+    - 时间和成本预算管理
+    - 分析进度跟踪和评估
+    - 提供替代方案和优化建议
+  - 🌐 新增分析规划API端点
+    - POST /api/v1/aag/plan - 创建分析计划
+    - POST /api/v1/aag/plan/progress - 评估执行进度
+    - GET /api/v1/aag/plan/goals - 获取分析目标列表
+
+  - ✅ LangGraph编排引擎 (OrchestrationEngine)
+    - 基于LangGraph实现复杂工作流编排
+    - 支持顺序、并行、条件和迭代执行模式
+    - 工作流状态管理和检查点保存
+    - 动态节点依赖和重试机制
+    - 三种预定义工作流模板（标准分析、批判性审查、自适应分析）
+    - 条件分支支持（根据文档质量动态调整分析深度）
+    - 执行记录持久化和进度跟踪
+  - 🌐 新增编排引擎API端点
+    - POST /api/v1/aag/workflow/create - 创建工作流
+    - POST /api/v1/aag/workflow/{workflow_id}/execute - 执行工作流
+    - GET /api/v1/aag/workflow/templates - 获取工作流模板
+    - POST /api/v1/aag/workflow/template/{template_id}/create - 基于模板创建工作流
+
+### 计划中
+- 知识整合Agent (SynthesizerAgent)
+- 工作流可视化和监控
+- 前端AAG功能集成
+- 知识图谱可视化
+
+## [0.11.1] - 2025-07-12
+
+### 新增
+- 💬 完整的对话历史持久化系统
+- 📝 实现Conversation和Message数据模型
+- 🔄 ConversationService服务层（包含CRUD、搜索、导出等）
+- 🌐 完整的对话管理RESTful API端点
+- 📦 支持对话导出（JSON和Markdown格式）
+
+### 改进
+- 对话消息支持来源引用和元数据存储
+- 集成Redis缓存优化对话查询性能
+- 支持软删除机制保留历史数据
+
+## [0.11.0] - 2025-07-07
+
+### 新增
+- 🔍 实现混合智能分块器（HybridChunker）
+- 📐 支持上下文窗口和滑动窗口分块
+- 🎯 添加关键信息识别和提取功能
+- 📊 实现语义聚类去重机制
+- 📝 完整的分块优化指南文档
+
+### 改进
+- 检索命中率提升约30%
+- 语义完整性达到95%
+- 文档覆盖率达到99%
+- 通过去重减少20%的冗余
+
+### 技术细节
+- 支持多策略融合（主策略+辅助策略）
+- 实现块质量评分机制
+- 添加块类型自动分类
+- 支持针对不同文档类型的动态参数调整
+
+## [0.10.1] - 2025-01-07
+
+### 修复
+- 修复高级文档分析器中`uuid4`未定义的错误
+- 修复DocumentChunk创建时参数名称错误（`start_index`→`start_char`, `end_index`→`end_char`）
+- 添加DocumentChunk创建时缺失的必需字段（`content_hash`, `char_count`）
+
+### 改进
+- 快速文本分析API端点现在可以正常工作
+- 所有API端点测试通过
+
+## [0.10.0] - 2025-01-06
+
+### 新增
+- 🎯 集成高级文档分析器到DPA系统
+- 🔬 实现六阶段文档深度分析方法论（准备、宏观理解、深度探索、批判性分析、知识整合、成果输出）
+- 📊 支持五种分析深度级别（Basic, Standard, Deep, Expert, Comprehensive）
+- 🔌 新增RESTful API端点用于文档分析
+- 💾 创建文档分析数据模型和数据库表
+- 📖 完整的高级文档分析器使用文档
+
+### 改进
+- API服务现在在8001端口运行，避免端口冲突
+- 数据库连接统一使用rtx4080服务器
+- 使用dpa_gen conda环境确保依赖兼容性
+
+## [0.9.0] - 2025-01-05
+
+### 新增
+- 🚦 实现API限流和版本控制系统
+- 🛡️ 添加企业级API管理功能
+- 🔄 支持多版本API并存
+
+### 改进
+- 优化API响应时间
+- 增强API安全性
+
+## [0.8.0] - 2025-01-04
+
+### 新增
+- 💾 实现统一的MemoryWriteService
+- 📄 优化文档分块策略
+- 💬 添加对话历史管理功能
+
+### 改进
+- 提升文档处理性能
+- 优化内存使用效率
+
+## [0.1.0] - 2024-12-XX
 
 ### 新增
 - 🎉 项目初始发布

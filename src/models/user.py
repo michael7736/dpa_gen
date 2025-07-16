@@ -22,8 +22,9 @@ class User(BaseEntity):
     preferences = Column(Text, nullable=True)  # JSON格式的用户偏好设置
     
     # 关系
-    projects = relationship("Project", back_populates="owner", cascade="all, delete-orphan")
+    projects = relationship("Project", back_populates="user", cascade="all, delete-orphan")
     conversations = relationship("Conversation", back_populates="user", cascade="all, delete-orphan")
+    # memories = relationship("Memory", back_populates="user", cascade="all, delete-orphan")
     
     def __repr__(self):
         return f"<User(id={self.id}, email='{self.email}', username='{self.username}')>" 

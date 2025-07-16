@@ -1,0 +1,102 @@
+[
+  {
+    "name": "memory",
+    "category": "extracted",
+    "description": "Frequency: 30",
+    "confidence": 1.0,
+    "first_seen": "2025-07-06T01:46:24.019223",
+    "last_seen": "2025-07-06T01:46:24.019223",
+    "frequency": 1,
+    "relationships": []
+  },
+  {
+    "name": "the",
+    "category": "extracted",
+    "description": "Frequency: 28",
+    "confidence": 1.0,
+    "first_seen": "2025-07-06T01:46:24.019226",
+    "last_seen": "2025-07-06T01:46:24.019226",
+    "frequency": 1,
+    "relationships": []
+  },
+  {
+    "name": "and",
+    "category": "extracted",
+    "description": "Frequency: 24",
+    "confidence": 1.0,
+    "first_seen": "2025-07-06T01:46:24.019228",
+    "last_seen": "2025-07-06T01:46:24.019228",
+    "frequency": 1,
+    "relationships": []
+  },
+  {
+    "name": "for",
+    "category": "extracted",
+    "description": "Frequency: 18",
+    "confidence": 1.0,
+    "first_seen": "2025-07-06T01:46:24.019230",
+    "last_seen": "2025-07-06T01:46:24.019230",
+    "frequency": 1,
+    "relationships": []
+  },
+  {
+    "name": "com",
+    "category": "extracted",
+    "description": "Frequency: 16",
+    "confidence": 1.0,
+    "first_seen": "2025-07-06T01:46:24.019231",
+    "last_seen": "2025-07-06T01:46:24.019231",
+    "frequency": 1,
+    "relationships": []
+  },
+  {
+    "name": "agent",
+    "category": "extracted",
+    "description": "Frequency: 13",
+    "confidence": 1.0,
+    "first_seen": "2025-07-06T01:46:24.019233",
+    "last_seen": "2025-07-06T01:46:24.019233",
+    "frequency": 1,
+    "relationships": []
+  },
+  {
+    "name": "into",
+    "category": "extracted",
+    "description": "Frequency: 12",
+    "confidence": 1.0,
+    "first_seen": "2025-07-06T01:46:24.019234",
+    "last_seen": "2025-07-06T01:46:24.019234",
+    "frequency": 1,
+    "relationships": []
+  },
+  {
+    "name": "medium.",
+    "category": "extracted",
+    "description": "Frequency: 12",
+    "confidence": 1.0,
+    "first_seen": "2025-07-06T01:46:24.019235",
+    "last_seen": "2025-07-06T01:46:24.019235",
+    "frequency": 1,
+    "relationships": []
+  },
+  {
+    "name": "documents",
+    "category": "extracted",
+    "description": "Frequency: 12",
+    "confidence": 1.0,
+    "first_seen": "2025-07-06T01:46:24.019237",
+    "last_seen": "2025-07-06T01:46:24.019237",
+    "frequency": 1,
+    "relationships": []
+  },
+  {
+    "name": "Memory",
+    "category": "extracted",
+    "description": "Frequency: 11",
+    "confidence": 1.0,
+    "first_seen": "2025-07-06T01:46:24.019238",
+    "last_seen": "2025-07-06T01:46:24.019238",
+    "frequency": 1,
+    "relationships": []
+  }
+]

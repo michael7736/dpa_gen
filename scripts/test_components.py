@@ -48,8 +48,8 @@ class ComponentTester:
             import psycopg2
             from psycopg2 import sql
             
-            # 使用配置中的数据库URL
-            conn_str = self.settings.database.url
+            # 使用配置中的数据库URL，转换为psycopg2格式
+            conn_str = self.settings.database.url.replace("postgresql+asyncpg://", "postgresql://")
             
             conn = psycopg2.connect(conn_str)
             cursor = conn.cursor()
@@ -101,12 +101,10 @@ class ComponentTester:
             client = QdrantClient(url=self.settings.qdrant.url)
             
             # 测试连接
-            info = client.get_cluster_info()
             collections = client.get_collections()
             
             self.log_result("Qdrant", "success", f"连接成功", {
-                "status": info.status,
-                "collections_count": len(collections.collections)
+                "collections_count": len(collections.collections) if hasattr(collections, 'collections') else 0
             })
             
         except Exception as e:
@@ -170,20 +168,41 @@ class ComponentTester:
     async def test_embedding_model(self):
         """测试嵌入模型"""
         try:
-            from sentence_transformers import SentenceTransformer
-            
-            # 加载模型
-            model = SentenceTransformer(self.settings.ai_model.default_embedding_model)
-            
-            # 测试嵌入生成
-            test_texts = ["这是一个测试文本", "This is a test text"]
-            embeddings = model.encode(test_texts)
-            
-            self.log_result("Embedding Model", "success", f"模型加载和推理成功", {
-                "model_name": self.settings.ai_model.default_embedding_model,
-                "embedding_dimension": embeddings.shape[1],
-                "test_texts_count": len(test_texts)
-            })
+            # 检查是否使用OpenAI模型
+            if "text-embedding" in self.settings.ai_model.default_embedding_model:
+                # 使用OpenAI的embedding模型
+                if not self.settings.ai_model.openai_api_key:
+                    self.log_result("Embedding Model", "error", f"OpenAI API密钥未配置", "请设置OPENAI_API_KEY")
+                    return
+                    
+                import openai
+                client = openai.OpenAI(api_key=self.settings.ai_model.openai_api_key)
+                
+                # 测试嵌入生成
+                test_text = "这是一个测试文本"
+                response = client.embeddings.create(
+                    input=test_text,
+                    model=self.settings.ai_model.default_embedding_model
+                )
+                
+                self.log_result("Embedding Model", "success", f"OpenAI模型测试成功", {
+                    "model_name": self.settings.ai_model.default_embedding_model,
+                    "embedding_dimension": len(response.data[0].embedding),
+                    "usage": response.usage.total_tokens
+                })
+            else:
+                # 使用本地SentenceTransformer模型
+                from sentence_transformers import SentenceTransformer
+                
+                model = SentenceTransformer(self.settings.ai_model.default_embedding_model)
+                test_texts = ["这是一个测试文本", "This is a test text"]
+                embeddings = model.encode(test_texts)
+                
+                self.log_result("Embedding Model", "success", f"本地模型加载成功", {
+                    "model_name": self.settings.ai_model.default_embedding_model,
+                    "embedding_dimension": embeddings.shape[1],
+                    "test_texts_count": len(test_texts)
+                })
             
         except Exception as e:
             self.log_result("Embedding Model", "error", f"模型测试失败", str(e))

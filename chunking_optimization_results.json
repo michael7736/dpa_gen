@@ -1,0 +1,44 @@
+{
+  "analysis": {
+    "固定大小": {
+      "count": 4,
+      "avg_size": 342.25,
+      "min_size": 99,
+      "max_size": 496,
+      "total_chars": 1369,
+      "types": {
+        "fixed": 4
+      },
+      "coverage_ratio": 1.0
+    },
+    "语义分块": {
+      "count": 3,
+      "avg_size": 355.3333333333333,
+      "min_size": 93,
+      "max_size": 502,
+      "total_chars": 1066,
+      "types": {
+        "semantic": 3
+      },
+      "coverage_ratio": 0.9944029850746269
+    },
+    "混合策略": {
+      "count": 14,
+      "avg_size": 171.21428571428572,
+      "min_size": 17,
+      "max_size": 316,
+      "total_chars": 2397,
+      "types": {
+        "section": 9,
+        "sliding_window": 5
+      },
+      "coverage_ratio": 0.9897388059701493
+    }
+  },
+  "scores": {
+    "固定大小": 50.0,
+    "语义分块": 49.88805970149254,
+    "混合策略": 59.79477611940298
+  },
+  "recommendation": "混合策略"
+}

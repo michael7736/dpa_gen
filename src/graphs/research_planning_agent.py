@@ -15,7 +15,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 
 from ..config.settings import get_settings
 from ..database.neo4j_client import get_neo4j_manager
-from ..database.qdrant_client import get_qdrant_manager
+from ..database.qdrant import get_qdrant_manager
 from ..utils.logger import get_logger
 
 logger = get_logger(__name__)

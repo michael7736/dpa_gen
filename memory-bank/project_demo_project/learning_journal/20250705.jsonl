@@ -1,0 +1,32 @@
+{"timestamp": "2025-07-05T17:08:15.679590", "event_type": "learn", "content": "Context updated with 362 characters", "metadata": {"source": "document:test_doc.txt", "size": 362}, "impact_score": 0.0}
+{"timestamp": "2025-07-05T17:08:16.687580", "event_type": "learn", "content": "Project demo_project initialized", "metadata": {"action": "initialize"}, "impact_score": 0.0}
+{"timestamp": "2025-07-05T17:16:19.507878", "event_type": "learn", "content": "Context updated with 362 characters", "metadata": {"source": "document:test_doc.txt", "size": 362}, "impact_score": 0.0}
+{"timestamp": "2025-07-05T17:16:20.514978", "event_type": "learn", "content": "Project demo_project initialized", "metadata": {"action": "initialize"}, "impact_score": 0.0}
+{"timestamp": "2025-07-05T17:16:20.517824", "event_type": "learn", "content": "Added 2 new concepts, updated 0", "metadata": {"added": 2, "updated": 0, "total": 2}, "impact_score": 0.0}
+{"timestamp": "2025-07-05T17:19:56.416773", "event_type": "learn", "content": "Context updated with 362 characters", "metadata": {"source": "document:test_doc.txt", "size": 362}, "impact_score": 0.0}
+{"timestamp": "2025-07-05T17:19:57.425723", "event_type": "learn", "content": "Project demo_project initialized", "metadata": {"action": "initialize"}, "impact_score": 0.0}
+{"timestamp": "2025-07-05T17:19:57.429149", "event_type": "learn", "content": "Added 2 new concepts, updated 0", "metadata": {"added": 2, "updated": 0, "total": 2}, "impact_score": 0.0}
+{"timestamp": "2025-07-05T17:23:47.830421", "event_type": "learn", "content": "Context updated with 362 characters", "metadata": {"source": "document:test_doc.txt", "size": 362}, "impact_score": 0.0}
+{"timestamp": "2025-07-05T17:23:48.837876", "event_type": "learn", "content": "Project demo_project initialized", "metadata": {"action": "initialize"}, "impact_score": 0.0}
+{"timestamp": "2025-07-05T17:23:48.840275", "event_type": "learn", "content": "Added 2 new concepts, updated 0", "metadata": {"added": 2, "updated": 0, "total": 2}, "impact_score": 0.0}
+{"timestamp": "2025-07-05T17:26:43.759429", "event_type": "learn", "content": "Context updated with 362 characters", "metadata": {"source": "document:test_doc.txt", "size": 362}, "impact_score": 0.0}
+{"timestamp": "2025-07-05T17:26:44.767789", "event_type": "learn", "content": "Project demo_project initialized", "metadata": {"action": "initialize"}, "impact_score": 0.0}
+{"timestamp": "2025-07-05T17:26:44.770502", "event_type": "learn", "content": "Added 2 new concepts, updated 0", "metadata": {"added": 2, "updated": 0, "total": 2}, "impact_score": 0.0}
+{"timestamp": "2025-07-05T17:29:22.470207", "event_type": "learn", "content": "Context updated with 362 characters", "metadata": {"source": "document:test_doc.txt", "size": 362}, "impact_score": 0.0}
+{"timestamp": "2025-07-05T17:29:23.477547", "event_type": "learn", "content": "Project demo_project initialized", "metadata": {"action": "initialize"}, "impact_score": 0.0}
+{"timestamp": "2025-07-05T17:29:23.479387", "event_type": "learn", "content": "Added 2 new concepts, updated 0", "metadata": {"added": 2, "updated": 0, "total": 2}, "impact_score": 0.0}
+{"timestamp": "2025-07-05T17:30:04.442124", "event_type": "learn", "content": "Context updated with 362 characters", "metadata": {"source": "document:test_doc.txt", "size": 362}, "impact_score": 0.0}
+{"timestamp": "2025-07-05T17:30:05.449553", "event_type": "learn", "content": "Project demo_project initialized", "metadata": {"action": "initialize"}, "impact_score": 0.0}
+{"timestamp": "2025-07-05T17:30:05.451264", "event_type": "learn", "content": "Added 2 new concepts, updated 0", "metadata": {"added": 2, "updated": 0, "total": 2}, "impact_score": 0.0}
+{"timestamp": "2025-07-05T17:31:51.589953", "event_type": "learn", "content": "Context updated with 362 characters", "metadata": {"source": "document:test_doc.txt", "size": 362}, "impact_score": 0.0}
+{"timestamp": "2025-07-05T17:31:52.599337", "event_type": "learn", "content": "Project demo_project initialized", "metadata": {"action": "initialize"}, "impact_score": 0.0}
+{"timestamp": "2025-07-05T17:31:52.601528", "event_type": "learn", "content": "Added 2 new concepts, updated 0", "metadata": {"added": 2, "updated": 0, "total": 2}, "impact_score": 0.0}
+{"timestamp": "2025-07-05T17:32:50.776883", "event_type": "learn", "content": "Context updated with 362 characters", "metadata": {"source": "document:test_doc.txt", "size": 362}, "impact_score": 0.0}
+{"timestamp": "2025-07-05T17:32:51.782444", "event_type": "learn", "content": "Project demo_project initialized", "metadata": {"action": "initialize"}, "impact_score": 0.0}
+{"timestamp": "2025-07-05T17:32:51.783891", "event_type": "learn", "content": "Added 2 new concepts, updated 0", "metadata": {"added": 2, "updated": 0, "total": 2}, "impact_score": 0.0}
+{"timestamp": "2025-07-05T17:34:27.834123", "event_type": "learn", "content": "Context updated with 362 characters", "metadata": {"source": "document:test_doc.txt", "size": 362}, "impact_score": 0.0}
+{"timestamp": "2025-07-05T17:34:28.843692", "event_type": "learn", "content": "Project demo_project initialized", "metadata": {"action": "initialize"}, "impact_score": 0.0}
+{"timestamp": "2025-07-05T17:34:28.846215", "event_type": "learn", "content": "Added 2 new concepts, updated 0", "metadata": {"added": 2, "updated": 0, "total": 2}, "impact_score": 0.0}
+{"timestamp": "2025-07-05T17:46:54.307879", "event_type": "learn", "content": "Context updated with 362 characters", "metadata": {"source": "document:test_doc.txt", "size": 362}, "impact_score": 0.0}
+{"timestamp": "2025-07-05T17:46:55.316554", "event_type": "learn", "content": "Project demo_project initialized", "metadata": {"action": "initialize"}, "impact_score": 0.0}
+{"timestamp": "2025-07-05T17:46:55.319053", "event_type": "learn", "content": "Added 2 new concepts, updated 0", "metadata": {"added": 2, "updated": 0, "total": 2}, "impact_score": 0.0}

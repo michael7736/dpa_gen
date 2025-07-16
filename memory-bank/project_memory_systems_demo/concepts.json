@@ -1,0 +1,72 @@
+[
+  {
+    "name": "and",
+    "category": "extracted",
+    "description": "Frequency: 3",
+    "confidence": 0.3,
+    "first_seen": "2025-07-05T22:56:24.252444",
+    "last_seen": "2025-07-05T22:56:24.252444",
+    "frequency": 1,
+    "relationships": []
+  },
+  {
+    "name": "Memory",
+    "category": "extracted",
+    "description": "Frequency: 2",
+    "confidence": 0.2,
+    "first_seen": "2025-07-05T22:56:24.252449",
+    "last_seen": "2025-07-05T22:56:24.252449",
+    "frequency": 1,
+    "relationships": []
+  },
+  {
+    "name": "Comprehensive",
+    "category": "extracted",
+    "description": "Frequency: 2",
+    "confidence": 0.2,
+    "first_seen": "2025-07-05T22:56:24.252451",
+    "last_seen": "2025-07-05T22:56:24.252451",
+    "frequency": 1,
+    "relationships": []
+  },
+  {
+    "name": "Deep",
+    "category": "extracted",
+    "description": "Frequency: 2",
+    "confidence": 0.2,
+    "first_seen": "2025-07-05T22:56:24.252453",
+    "last_seen": "2025-07-05T22:56:24.252453",
+    "frequency": 1,
+    "relationships": []
+  },
+  {
+    "name": "Dive",
+    "category": "extracted",
+    "description": "Frequency: 2",
+    "confidence": 0.2,
+    "first_seen": "2025-07-05T22:56:24.252454",
+    "last_seen": "2025-07-05T22:56:24.252454",
+    "frequency": 1,
+    "relationships": []
+  },
+  {
+    "name": "working",
+    "category": "extracted",
+    "description": "Frequency: 2",
+    "confidence": 0.2,
+    "first_seen": "2025-07-05T22:56:24.252456",
+    "last_seen": "2025-07-05T22:56:24.252456",
+    "frequency": 1,
+    "relationships": []
+  },
+  {
+    "name": "the",
+    "category": "extracted",
+    "description": "Frequency: 2",
+    "confidence": 0.2,
+    "first_seen": "2025-07-05T22:56:24.252457",
+    "last_seen": "2025-07-05T22:56:24.252457",
+    "frequency": 1,
+    "relationships": []
+  }
+]

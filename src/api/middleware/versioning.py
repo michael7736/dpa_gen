@@ -84,23 +84,29 @@ class APIVersionManager:
         
     def extract_version_from_request(self, request: Request) -> str:
         """从请求中提取版本号"""
-        # 1. 从URL路径提取
-        path_parts = request.url.path.split("/")
-        if len(path_parts) > 2 and path_parts[2].startswith("v"):
-            return path_parts[2]
+        try:
+            # 1. 从URL路径提取
+            path_parts = request.url.path.split("/")
+            if len(path_parts) > 2 and path_parts[2].startswith("v"):
+                version = path_parts[2]
+                return version
+                
+            # 2. 从请求头提取
+            api_version = request.headers.get("X-API-Version")
+            if api_version:
+                return api_version
+                
+            # 3. 从查询参数提取
+            api_version = request.query_params.get("api_version")
+            if api_version:
+                return api_version
+                
+            # 4. 返回当前版本
+            return self.current_version
             
-        # 2. 从请求头提取
-        api_version = request.headers.get("X-API-Version")
-        if api_version:
-            return api_version
-            
-        # 3. 从查询参数提取
-        api_version = request.query_params.get("api_version")
-        if api_version:
-            return api_version
-            
-        # 4. 返回当前版本
-        return self.current_version
+        except Exception as e:
+            logger.error(f"版本提取异常: {e}, 路径: {request.url.path}, 使用默认版本: {self.current_version}")
+            return self.current_version
 
 
 class VersioningMiddleware(BaseHTTPMiddleware):
@@ -112,18 +118,32 @@ class VersioningMiddleware(BaseHTTPMiddleware):
         
     async def dispatch(self, request: Request, call_next):
         """处理请求"""
-        # 提取版本
-        version_string = self.version_manager.extract_version_from_request(request)
-        
-        # 检查版本是否支持
-        if not self.version_manager.is_version_supported(version_string):
+        try:
+            # 提取版本
+            version_string = self.version_manager.extract_version_from_request(request)
+            
+            # 检查版本是否支持
+            if not self.version_manager.is_version_supported(version_string):
+                logger.error(f"不支持的API版本: {version_string}, 请求路径: {request.url.path}, 方法: {request.method}")
+                return JSONResponse(
+                    status_code=400,
+                    content={
+                        "error": "Unsupported API version",
+                        "message": f"API版本 '{version_string}' 不支持",
+                        "supported_versions": list(self.version_manager.versions.keys()),
+                        "current_version": self.version_manager.current_version,
+                        "request_path": str(request.url.path),
+                        "extracted_version": version_string
+                    }
+                )
+        except Exception as e:
+            logger.error(f"版本中间件异常: {e}, 请求: {request.method} {request.url.path}")
             return JSONResponse(
                 status_code=400,
                 content={
-                    "error": "Unsupported API version",
-                    "message": f"API版本 '{version_string}' 不支持",
-                    "supported_versions": list(self.version_manager.versions.keys()),
-                    "current_version": self.version_manager.current_version
+                    "error": "Version middleware error",
+                    "message": str(e),
+                    "request_path": str(request.url.path)
                 }
             )
             

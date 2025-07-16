@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>前端API连接测试</title>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+</head>
+<body>
+    <h1>DPA前端API连接测试</h1>
+    <div id="status">正在测试...</div>
+    <div id="result"></div>
+
+    <script>
+        const API_BASE = 'http://localhost:8200';
+        
+        // 创建axios实例
+        const api = axios.create({
+            baseURL: API_BASE,
+            headers: {
+                'Content-Type': 'application/json',
+                'X-USER-ID': 'u1'
+            },
+            withCredentials: true
+        });
+
+        async function testAPI() {
+            const statusDiv = document.getElementById('status');
+            const resultDiv = document.getElementById('result');
+            
+            try {
+                statusDiv.innerHTML = '正在测试API连接...';
+                
+                // 测试项目列表API
+                const response = await api.get('/api/v1/projects?page=1&page_size=10');
+                
+                statusDiv.innerHTML = '✅ API连接成功！';
+                resultDiv.innerHTML = `
+                    <h3>项目列表响应:</h3>
+                    <pre>${JSON.stringify(response.data, null, 2)}</pre>
+                `;
+                
+            } catch (error) {
+                statusDiv.innerHTML = '❌ API连接失败';
+                resultDiv.innerHTML = `
+                    <h3>错误信息:</h3>
+                    <pre>${JSON.stringify({
+                        message: error.message,
+                        status: error.response?.status,
+                        data: error.response?.data
+                    }, null, 2)}</pre>
+                `;
+                console.error('API Test Error:', error);
+            }
+        }
+
+        // 页面加载后自动测试
+        window.onload = testAPI;
+    </script>
+</body>
+</html>

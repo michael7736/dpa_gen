@@ -13,11 +13,10 @@ from langchain_core.documents import Document
 from langchain_core.embeddings import Embeddings
 from langchain_openai import OpenAIEmbeddings
 from langchain_community.vectorstores import Qdrant
-from qdrant_client import QdrantClient
 from qdrant_client.models import Distance, VectorParams, PointStruct
 
 from ..config.settings import get_settings
-from ..database.qdrant_client import QdrantManager
+from ..database.qdrant import QdrantManager
 from ..database.neo4j_client import Neo4jManager
 from ..utils.logger import get_logger
 
@@ -34,7 +33,8 @@ class KnowledgeIndexer:
         self.neo4j_manager = Neo4jManager()
         self.embeddings = OpenAIEmbeddings(
             model=settings.ai_model.default_embedding_model,
-            dimensions=settings.ai_model.embedding_dimension
+            dimensions=settings.ai_model.embedding_dimension,
+            openai_api_key=settings.ai_model.openai_api_key
         )
         
     async def create_project_collection(self, project_id: UUID) -> str:

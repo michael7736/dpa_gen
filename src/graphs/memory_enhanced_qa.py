@@ -15,7 +15,7 @@ from ..services.memory_service import (
     ProjectMemoryService, UserMemoryService, 
     ConversationMemoryService, MemoryService
 )
-from ..models.memory import MemoryCreate, MemoryType, MemoryScope
+from ..models.memory_schemas import MemoryCreate, MemoryType, MemoryScope
 from ..utils.logger import get_logger
 
 logger = get_logger(__name__)

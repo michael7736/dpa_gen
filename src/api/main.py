@@ -12,19 +12,37 @@ import uvicorn
 from fastapi import FastAPI, HTTPException, BackgroundTasks, Depends, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.exceptions import RequestValidationError
 
 from ..config.settings import get_settings
 from ..database.postgresql import get_db_session
-from ..database.qdrant_client import get_qdrant_manager
+from ..database.qdrant import get_qdrant_manager
 from ..database.neo4j_client import get_neo4j_manager
 from ..graphs.document_processing_agent_simple import get_document_processing_agent
 # from ..graphs.research_planning_agent import get_research_planning_agent
 from ..utils.logger import get_logger
 
+# 确保所有模型都被导入
+from ..models import *
+
 # 导入路由
-from .routes import documents, projects, research, knowledge, health, qa, metadata, memory, analysis, enhanced_qa
+from .routes import documents, projects, health, qa, metadata, memory, analysis, enhanced_qa, conversations, qa_with_history
 from .routes import documents_simple  # 简化的文档路由，用于测试
+from .routes import documents_v2  # V2文档路由，支持用户选择处理选项
+from .routes import document_processing  # 文档二次处理路由
 from .routes import demo  # 演示路由，展示限流和版本控制
+from .routes import memory_workflow  # 记忆工作流路由
+from .routes import memory_bank  # Memory Bank路由
+from .routes import document_processor  # 文档处理路由
+from .routes import hybrid_retrieval  # 混合检索路由
+from .routes import mvp_qa  # MVP问答路由
+from .routes import fast_qa  # 快速问答路由 - 优化响应时间
+from .routes import ultra_fast_qa  # 超快速问答路由 - <1秒响应
+from .routes import cognitive  # V3认知系统API桥接层
+from .routes import websocket_routes  # WebSocket路由
+from .routes import aag  # AAG分析增强生成路由
+from .routes import document_operations  # 文档操作路由
+# from .routes import auth_demo  # 认证演示路由 - 暂时禁用，缺少jose依赖
 
 logger = get_logger(__name__)
 settings = get_settings()
@@ -82,8 +100,12 @@ async def initialize_databases():
             await qdrant_manager.create_collection(collection_name, vector_size)
         
         # 初始化Neo4j索引
-        neo4j_manager = get_neo4j_manager()
-        await neo4j_manager.create_indexes()
+        try:
+            neo4j_manager = get_neo4j_manager()
+            await neo4j_manager.create_indexes()
+        except Exception as e:
+            logger.warning(f"Neo4j初始化失败，继续启动: {e}")
+            # 继续启动，不因为Neo4j失败而阻塞
         
         logger.info("✅ 数据库初始化完成")
         
@@ -105,14 +127,27 @@ app = FastAPI(
 # 配置CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.app.cors_origins,
+    allow_origins=[
+        "http://localhost:3000",
+        "http://localhost:8230",
+        "http://localhost:8031",  # Next.js 前端
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:8230",
+        "http://127.0.0.1:8031",
+        "http://cnllm:3000",
+        "http://cnllm:8230",
+        "http://120.26.11.30:3000",
+        "http://120.26.11.30:8230"
+    ],  # 具体的前端域名
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
 
 # 添加限流中间件
 from .middleware import RateLimitMiddleware, VersioningMiddleware
+from .middleware.auth import UserAuthMiddleware
 
 app.add_middleware(
     RateLimitMiddleware,
@@ -124,8 +159,26 @@ app.add_middleware(
 # 添加版本控制中间件
 app.add_middleware(VersioningMiddleware)
 
+# 添加用户认证中间件（为多用户预埋）
+app.add_middleware(UserAuthMiddleware)
 
-# 全局异常处理器
+
+# 导入增强的错误处理器 - 暂时禁用，需要先安装依赖
+# from .middleware.error_handler import (
+#     APIError,
+#     api_error_handler,
+#     http_exception_handler as enhanced_http_handler,
+#     validation_error_handler,
+#     generic_exception_handler
+# )
+
+# 注册错误处理器 - 暂时使用默认处理器
+# app.add_exception_handler(APIError, api_error_handler)
+# app.add_exception_handler(RequestValidationError, validation_error_handler)
+# app.add_exception_handler(HTTPException, enhanced_http_handler)
+# app.add_exception_handler(Exception, generic_exception_handler)
+
+# 恢复原有的异常处理器
 @app.exception_handler(Exception)
 async def global_exception_handler(request, exc):
     """全局异常处理"""
@@ -139,7 +192,6 @@ async def global_exception_handler(request, exc):
             "request_id": getattr(request.state, "request_id", None)
         }
     )
-
 
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request, exc):
@@ -200,6 +252,13 @@ async def log_requests(request, call_next):
         )
         
         raise
+
+
+# 全局OPTIONS处理器，解决CORS预检请求问题
+@app.options("/{full_path:path}")
+async def options_handler(full_path: str):
+    """处理所有OPTIONS请求，解决CORS预检问题"""
+    return {"message": "OK"}
 
 
 # 根路径
@@ -267,41 +326,32 @@ async def health_check():
 # 注册路由
 app.include_router(health.router, prefix="/api/v1", tags=["健康检查"])
 app.include_router(projects.router, prefix="/api/v1", tags=["项目管理"])
-# app.include_router(documents.router, prefix="/api/v1", tags=["文档管理"])  # 原始文档路由
+app.include_router(documents.router, prefix="/api/v1", tags=["文档管理"])
+app.include_router(documents_v2.router, tags=["文档管理V2"])  # V2版本，支持处理选项
+app.include_router(document_processing.router, tags=["文档处理"])  # 文档二次处理
+app.include_router(conversations.router, tags=["对话管理"])
 app.include_router(documents_simple.router, tags=["文档管理"])  # 使用简化版本进行测试
-app.include_router(research.router, prefix="/api/v1", tags=["研究规划"])
-app.include_router(knowledge.router, prefix="/api/v1", tags=["知识管理"])
+app.include_router(document_operations.router, tags=["文档操作"])  # 文档操作API
+# app.include_router(research.router, prefix="/api/v1", tags=["研究规划"])  # 尚未实现
+# app.include_router(knowledge.router, prefix="/api/v1", tags=["知识管理"])  # 尚未实现
 app.include_router(qa.router, tags=["知识问答"])  # 已包含/api/v1前缀
 app.include_router(enhanced_qa.router, tags=["增强问答"])  # 已包含/api/v1前缀
+app.include_router(qa_with_history.router, tags=["对话问答"])  # 带对话历史的问答
 app.include_router(metadata.router, tags=["元数据管理"])  # 已包含/api/v1前缀
 app.include_router(memory.router, tags=["记忆系统"])  # 已包含/api/v1前缀
+app.include_router(memory_workflow.router, tags=["记忆工作流"])  # 认知工作流API
+app.include_router(memory_bank.router, tags=["Memory Bank"])  # Memory Bank管理
+app.include_router(document_processor.router, tags=["文档处理"])  # MVP文档处理
+app.include_router(hybrid_retrieval.router, tags=["混合检索"])  # 三阶段混合检索
+app.include_router(mvp_qa.router, tags=["MVP问答"])  # MVP问答系统
+app.include_router(fast_qa.router, tags=["快速问答"])  # 优化问答系统 - 响应时间<1秒
+app.include_router(ultra_fast_qa.router, tags=["超快问答"])  # 超快问答系统 - 极速响应
 app.include_router(analysis.router, tags=["文档分析"])  # 已包含/api/v1前缀
+app.include_router(cognitive.router, prefix="/api/v1", tags=["V3认知系统"])  # V3认知系统API桥接层
 app.include_router(demo.router, prefix="/api/v1", tags=["演示"])  # 演示限流和版本控制
-
-
-# WebSocket支持（用于实时通信）
-@app.websocket("/ws/{client_id}")
-async def websocket_endpoint(websocket, client_id: str):
-    """WebSocket端点 - 实时通信"""
-    await websocket.accept()
-    
-    logger.info(f"WebSocket连接建立: {client_id}")
-    
-    try:
-        while True:
-            # 接收客户端消息
-            data = await websocket.receive_text()
-            
-            # 这里可以处理实时消息
-            logger.info(f"收到WebSocket消息: {client_id} -> {data}")
-            
-            # 回复消息
-            await websocket.send_text(f"服务器收到: {data}")
-            
-    except Exception as e:
-        logger.error(f"WebSocket连接异常: {client_id} -> {e}")
-    finally:
-        logger.info(f"WebSocket连接关闭: {client_id}")
+app.include_router(websocket_routes.router, prefix="/api/v1", tags=["WebSocket通信"])  # WebSocket路由
+app.include_router(aag.router, tags=["AAG分析"])  # AAG分析增强生成路由
+# app.include_router(auth_demo.router, tags=["认证演示"])  # 增强认证和错误处理演示 - 暂时禁用
 
 
 if __name__ == "__main__":

@@ -178,7 +178,7 @@ async def close_connections():
 
 def get_db_session():
     """获取数据库会话（FastAPI依赖注入）"""
-    SessionLocal = get_sync_session_factory()
+    SessionLocal = get_session_factory()
     db = SessionLocal()
     try:
         yield db
@@ -186,7 +186,7 @@ def get_db_session():
         db.close()
 
 
-def get_session():
+def get_sync_session():
     """获取同步数据库会话"""
-    SessionLocal = get_sync_session_factory()
+    SessionLocal = get_session_factory()
     return SessionLocal() 

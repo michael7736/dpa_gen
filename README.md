@@ -6,15 +6,20 @@
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Code style: ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
-[![Progress](https://img.shields.io/badge/Progress-80%25-green)](https://github.com/michael7736/dpa_gen)
+[![Progress](https://img.shields.io/badge/Progress-50%25-yellow)](https://github.com/michael7736/dpa_gen)
 
 **🔗 GitHub仓库**: [michael7736/dpa_gen](https://github.com/michael7736/dpa_gen)
 
 ## 📊 项目状态
 
-- **当前版本**: v0.8.0 (MVP阶段)
-- **完成度**: 80%
-- **最后更新**: 2025-07-04
+- **当前版本**: v0.12.0-alpha (AAG核心分析模块)
+- **完成度**: 58%
+- **最后更新**: 2025-07-14
+- **当前重点**: 🔥 **AAG (Analysis-Augmented Generation) 模块开发**
+- **最新进展**: 
+  - ✅ 实现快速略读、渐进式摘要、知识图谱构建功能
+  - ✅ 完成AAG基础架构和API集成
+  - 🚧 正在开发多维大纲提取和深度分析功能
 
 ## 🚀 项目概述
 
@@ -22,16 +27,29 @@ DPA（Deep research & Progressive learning Agent）智能知识引擎是一个�
 
 ### 核心特性
 
+#### 🔥 AAG (Analysis-Augmented Generation) - 当前开发重点
+- **快速略读 (SkimmerAgent)**: 智能识别文档类型，评估质量，提取核心价值
+- **渐进式摘要 (ProgressiveSummaryAgent)**: 5级层次化摘要体系（50-2000字）
+- **知识图谱构建 (KnowledgeGraphAgent)**: 多模式实体关系提取，支持Neo4j导出
+- **多维分析** (开发中): 逻辑、主题、时间、因果等多维度文档解析
+- **深度分析集合** (计划中): 证据链追踪、交叉引用、批判性思维分析
+
+#### 基础能力
 - 🧠 **智能文档处理**: 支持PDF、Word、Markdown等多种格式，自动解析文档结构
 - 🔍 **层次化知识索引**: 构建文档、章节、段落的多层次索引体系
 - 📊 **知识图谱构建**: 自动提取实体关系，构建领域知识图谱
 - 🎯 **智能研究规划**: 参考OpenAI DeepResearch工作流，自动制定研究计划
 - 💾 **渐进式学习**: 建立项目记忆库，跟踪研究进展
 - 🔄 **多模态理解**: 集成最新AI技术，支持文本、图像等多模态内容
+
+#### 企业级特性
 - 🚦 **API限流与版本控制**: 企业级API管理，支持多版本并存
 - 📈 **性能监控**: 完整的监控体系，实时跟踪系统性能
 - 🐳 **容器化部署**: 支持Docker和Kubernetes部署
 - 🛡️ **安全加固**: 多层安全防护，保护数据安全
+- ✨ **六阶段深度分析**: 高级文档分析器，提供从准备到输出的完整分析流程
+- 🎨 **五级分析深度**: 支持Basic、Standard、Deep、Expert、Comprehensive五种分析级别
+- 🔍 **智能混合分块**: 结合多种策略优化检索命中率，支持上下文窗口和滑动窗口
 
 ## 🏗️ 系统架构
 
@@ -87,6 +105,27 @@ DPA（Deep research & Progressive learning Agent）智能知识引擎是一个�
 
 ## 📦 快速开始
 
+### 🔥 AAG模块快速体验
+
+```bash
+# 1. 激活环境
+eval "$(/Users/mdwong001/miniconda3/condabin/conda shell.zsh hook)" && conda activate dpa_gen
+
+# 2. 启动API服务
+uvicorn src.api.main:app --host 0.0.0.0 --port 8000 --reload
+
+# 3. 快速测试AAG功能
+curl -X POST http://localhost:8000/api/v1/aag/skim \
+  -H "X-USER-ID: u1" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "document_id": "test_doc",
+    "document_content": "您的文档内容..."
+  }'
+```
+
+详细使用指南请参考 [AAG快速开始](docs/AAG_QUICK_START.md)
+
 ### 环境要求
 
 - Python 3.11.5
@@ -94,7 +133,7 @@ DPA（Deep research & Progressive learning Agent）智能知识引擎是一个�
 - Conda (推荐使用dpa_gen环境)
 - 数据库服务器: rtx4080 (PostgreSQL, Redis, Qdrant, Neo4j)
 
-### 使用Conda环境（推荐）
+### 完整安装步骤
 
 1. **创建并激活环境**
 ```bash
@@ -168,7 +207,7 @@ REDIS_URL=redis://localhost:6379/0
 ```bash
 # 服务器配置
 SERVER_HOST=127.0.0.1
-SERVER_PORT=8000
+SERVER_PORT=8200
 
 # 文档处理配置
 DEFAULT_CHUNK_SIZE=1000
@@ -184,9 +223,9 @@ DEFAULT_SEARCH_RESULTS=50
 
 启动服务后，访问以下地址查看API文档：
 
-- **Swagger UI**: http://localhost:8000/docs
-- **ReDoc**: http://localhost:8000/redoc
-- **健康检查**: http://localhost:8000/health
+- **Swagger UI**: http://localhost:8200/docs
+- **ReDoc**: http://localhost:8200/redoc
+- **健康检查**: http://localhost:8200/health
 
 ### 主要API端点
 
@@ -199,6 +238,17 @@ DEFAULT_SEARCH_RESULTS=50
 - `POST /api/v1/documents/upload` - 上传文档
 - `GET /api/v1/documents/{document_id}/status` - 获取处理状态
 - `GET /api/v1/documents/{document_id}/outline` - 获取文档大纲
+
+#### 对话管理 🆕
+- `POST /api/v1/conversations` - 创建对话
+- `GET /api/v1/conversations` - 获取对话列表
+- `POST /api/v1/conversations/{id}/messages` - 添加消息
+- `GET /api/v1/conversations/{id}/messages` - 获取对话消息
+- `GET /api/v1/conversations/{id}/export` - 导出对话
+
+#### 问答系统
+- `POST /api/v1/qa/answer` - 基础问答
+- `POST /api/v1/enhanced-qa/answer` - 增强问答（支持对话历史）
 
 #### 研究规划
 - `POST /api/v1/research/plans` - 创建研究计划
@@ -224,7 +274,7 @@ project_data = {
     "objectives": ["研究最新技术", "构建知识体系"]
 }
 
-response = httpx.post("http://localhost:8000/api/v1/projects", json=project_data)
+response = httpx.post("http://localhost:8200/api/v1/projects", json=project_data)
 project = response.json()
 project_id = project["project_id"]
 ```
@@ -238,7 +288,7 @@ with open("research_paper.pdf", "rb") as f:
     data = {"project_id": project_id}
     
     response = httpx.post(
-        "http://localhost:8000/api/v1/documents/upload",
+        "http://localhost:8200/api/v1/documents/upload",
         files=files,
         data=data
     )
@@ -261,7 +311,7 @@ research_data = {
     ]
 }
 
-response = httpx.post("http://localhost:8000/api/v1/research/plans", json=research_data)
+response = httpx.post("http://localhost:8200/api/v1/research/plans", json=research_data)
 plan = response.json()
 ```
 
@@ -275,7 +325,7 @@ search_data = {
     "limit": 10
 }
 
-response = httpx.post("http://localhost:8000/api/v1/knowledge/search", json=search_data)
+response = httpx.post("http://localhost:8200/api/v1/knowledge/search", json=search_data)
 results = response.json()
 ```
 
@@ -319,13 +369,13 @@ results = response.json()
 
 ```bash
 # 检查系统健康状态
-curl http://localhost:8000/health
+curl http://localhost:8200/health
 
 # 检查服务详细状态
-curl http://localhost:8000/api/v1/health/services
+curl http://localhost:8200/api/v1/health/services
 
 # 检查系统指标
-curl http://localhost:8000/api/v1/health/metrics
+curl http://localhost:8200/api/v1/health/metrics
 ```
 
 ### 日志查看

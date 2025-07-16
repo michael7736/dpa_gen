@@ -12,8 +12,10 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langgraph.graph import StateGraph, END
 
-from ..core.vectorization import VectorStore
+from ..core.simple_vectorstore import SimpleVectorStore
 from ..services.cache_service import CacheService, CacheKeys, cache_result
+from ..services.reranker import RerankerService
+from ..services.optimized_retrieval import OptimizedVectorRetrieval, QueryOptimizer
 from ..utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -42,10 +44,24 @@ class BasicKnowledgeQA:
     """基础知识问答系统"""
     
     def __init__(self):
+        # 配置向量存储
+        from ..config.settings import get_settings
+        settings = get_settings()
+        
+        # 使用配置中的API密钥
+        import os
+        if settings.ai_model.openai_api_key:
+            os.environ["OPENAI_API_KEY"] = settings.ai_model.openai_api_key
+            
         self.llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
         self.embeddings = OpenAIEmbeddings(model="text-embedding-3-large")
-        self.vector_store = VectorStore()
+        
+        # 使用简单的向量存储（临时方案）
+        self.vector_store = SimpleVectorStore()
         self.cache_service = CacheService()
+        self.reranker = RerankerService()
+        self.optimized_retrieval = OptimizedVectorRetrieval()
+        self.query_optimizer = QueryOptimizer()
         
         # 构建工作流
         self.graph = self._build_graph()
@@ -73,49 +89,51 @@ class BasicKnowledgeQA:
         start_time = datetime.now()
         
         try:
-            # 生成查询哈希用于缓存
-            query_hash = hashlib.md5(state["question"].encode()).hexdigest()
-            cache_key = CacheKeys.search_results(state["project_id"], query_hash)
+            # 优化查询
+            query_suggestions = await self.query_optimizer.optimize_query(state["question"])
             
-            # 检查缓存
-            cached_results = await self.cache_service.get(cache_key)
-            if cached_results:
-                state["retrieved_chunks"] = cached_results
-                state["from_cache"] = True
-                logger.info("Using cached search results")
-                return state
-            
-            # 生成查询向量
-            query_embedding = await self.embeddings.aembed_query(state["question"])
-            
-            # 向量检索
-            results = await self.vector_store.search(
+            # 使用优化的检索服务
+            chunks = await self.optimized_retrieval.optimized_search(
                 collection_name=f"project_{state['project_id']}",
-                query_vector=query_embedding,
-                limit=20  # 初步召回更多结果
+                query=state["question"],
+                top_k=20,
+                filters=query_suggestions.get("filters"),
+                search_strategy=query_suggestions.get("search_strategy", "hybrid")
             )
             
-            # 转换结果格式
-            chunks = []
-            for result in results:
-                chunks.append({
-                    "content": result["content"],
-                    "score": result["score"],
-                    "metadata": result.get("metadata", {}),
-                    "document_id": result.get("document_id")
-                })
-            
             state["retrieved_chunks"] = chunks
-            state["from_cache"] = False
+            state["from_cache"] = False  # 缓存已在optimized_search内部处理
             
-            # 缓存结果
-            await self.cache_service.set(cache_key, chunks, ttl=1800)  # 30分钟
-            
-            logger.info(f"Retrieved {len(chunks)} chunks for question")
+            logger.info(f"Retrieved {len(chunks)} chunks using {query_suggestions.get('search_strategy')} strategy")
             
         except Exception as e:
             logger.error(f"Retrieval error: {e}")
-            state["retrieved_chunks"] = []
+            # 降级到基础检索
+            try:
+                # 使用LangChain向量存储进行检索
+                results = await self.vector_store.similarity_search(
+                    query=state["question"],
+                    k=20,
+                    filter_conditions={"project_id": state["project_id"]}
+                )
+                
+                # 转换结果格式
+                chunks = []
+                for doc, score in results:
+                    chunks.append({
+                        "content": doc.page_content,
+                        "score": score,
+                        "metadata": doc.metadata,
+                        "document_id": doc.metadata.get("document_id")
+                    })
+                
+                state["retrieved_chunks"] = chunks
+                state["from_cache"] = False
+                logger.info(f"Fallback retrieval: {len(chunks)} chunks")
+                
+            except Exception as fallback_error:
+                logger.error(f"Fallback retrieval error: {fallback_error}")
+                state["retrieved_chunks"] = []
         
         finally:
             state["response_time"] = (datetime.now() - start_time).total_seconds()
@@ -130,30 +148,16 @@ class BasicKnowledgeQA:
                 state["reranked_chunks"] = []
                 return state
             
-            # 简单的重排序策略
-            # 1. 基于相似度分数
-            # 2. 考虑文档新鲜度（如果有时间戳）
-            # 3. 去重
+            # 使用高级重排序服务
+            reranked_chunks = await self.reranker.rerank(
+                query=state["question"],
+                chunks=chunks,
+                strategy="hybrid",  # 使用混合策略
+                top_k=5
+            )
             
-            # 按分数排序
-            sorted_chunks = sorted(chunks, key=lambda x: x["score"], reverse=True)
-            
-            # 去重（基于内容相似性）
-            unique_chunks = []
-            seen_content = set()
-            
-            for chunk in sorted_chunks:
-                # 简单的去重：检查前100个字符
-                content_key = chunk["content"][:100]
-                if content_key not in seen_content:
-                    unique_chunks.append(chunk)
-                    seen_content.add(content_key)
-                
-                if len(unique_chunks) >= 5:  # 最多保留5个块
-                    break
-            
-            state["reranked_chunks"] = unique_chunks
-            logger.info(f"Reranked to {len(unique_chunks)} unique chunks")
+            state["reranked_chunks"] = reranked_chunks
+            logger.info(f"Reranked to {len(reranked_chunks)} chunks using hybrid strategy")
             
         except Exception as e:
             logger.error(f"Reranking error: {e}")

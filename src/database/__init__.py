@@ -4,7 +4,7 @@
 """
 
 from .postgresql import get_engine, create_tables, get_session
-from .qdrant_client import get_qdrant_client, init_qdrant_collection
+from .qdrant import get_qdrant_client, init_qdrant_collection
 from .neo4j_client import get_neo4j_driver, init_neo4j_constraints
 from .redis_client import get_redis_client, get_cache
 

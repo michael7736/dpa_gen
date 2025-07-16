@@ -18,13 +18,13 @@ from pydantic import BaseModel, Field
 
 from ..config.settings import get_settings
 from ..core.chunking import DocumentChunker, ChunkingStrategy
-from ..core.vectorization import VectorStore
+from ..core.vectorization import VectorStore, VectorConfig, EmbeddingService
 from ..core.knowledge_index import KnowledgeIndexer
-from ..database.qdrant_client import QdrantClient
+from ..database.qdrant import get_qdrant_manager
 from ..models.document import Document, DocumentType, ProcessingStatus, DocumentChunk
 from ..models.project import Project
 from ..services.document_parser import parse_document, DocumentContent
-from ..services.file_storage import FileStorageService
+from ..services.file_storage import LocalFileStorage as FileStorageService
 from ..utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -80,9 +80,22 @@ class DocumentProcessingAgent:
         self.logger = get_logger(__name__)
         self.file_storage = FileStorageService()
         self.chunker = DocumentChunker()
-        self.vector_store = VectorStore()
-        self.knowledge_index = KnowledgeIndex()
-        self.qdrant_client = QdrantClient()
+        
+        # 初始化向量存储配置
+        vector_config = VectorConfig(
+            model_name="text-embedding-3-large",
+            dimension=3072,  # text-embedding-3-large的维度
+            distance_metric="cosine"
+        )
+        self.vector_store = VectorStore(
+            config=vector_config,
+            qdrant_url=f"http://{settings.qdrant.host}:{settings.qdrant.port}",
+            collection_name="documents"
+        )
+        self.embedding_service = EmbeddingService(vector_config)
+        
+        self.knowledge_index = KnowledgeIndexer()
+        self.qdrant_manager = get_qdrant_manager()
         
         # 构建状态图
         self.graph = self._build_graph()
@@ -353,7 +366,7 @@ class DocumentProcessingAgent:
             texts = [chunk.content for chunk in state["chunks"]]
             
             # 生成嵌入向量
-            embeddings = await self.vector_store.embed_texts(texts)
+            embeddings = await self.embedding_service.embed_documents(texts)
             
             # 更新块的嵌入向量
             for chunk, embedding in zip(state["chunks"], embeddings):
@@ -593,4 +606,9 @@ async def get_processing_status(document_id: str) -> Optional[Dict[str, Any]]:
 
 async def cancel_processing(document_id: str) -> bool:
     """取消处理的便捷函数"""
-    return await document_processing_agent.cancel_processing(document_id) 
+    return await document_processing_agent.cancel_processing(document_id)
+
+
+def get_document_processing_agent() -> DocumentProcessingAgent:
+    """获取文档处理智能体实例"""
+    return document_processing_agent 

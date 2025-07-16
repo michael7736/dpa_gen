@@ -38,7 +38,7 @@ class CacheService:
         if self._redis_client is None:
             try:
                 self._redis_client = await redis.from_url(
-                    settings.REDIS_URL,
+                    settings.redis.url,
                     encoding="utf-8",
                     decode_responses=False  # 返回字节，支持pickle
                 )

@@ -7,21 +7,20 @@ import logging
 import asyncio
 from typing import List, Dict, Any, Optional, Tuple
 from dataclasses import dataclass
-import numpy as np
 from langchain_community.embeddings import OpenAIEmbeddings, HuggingFaceEmbeddings
 from langchain_core.documents import Document
-from langchain_community.vectorstores import Qdrant
-from qdrant_client import QdrantClient
 from qdrant_client.models import Distance, VectorParams, PointStruct
 import uuid
+import os
+from ..database.qdrant_process_safe import get_process_safe_qdrant_manager
 
 logger = logging.getLogger(__name__)
 
 @dataclass
 class VectorConfig:
     """向量配置"""
-    model_name: str = "text-embedding-ada-002"
-    dimension: int = 1536
+    model_name: str = "text-embedding-3-large"
+    dimension: int = 3072
     distance_metric: str = "cosine"
     batch_size: int = 100
     
@@ -97,41 +96,38 @@ class VectorStore:
     def __init__(
         self,
         config: VectorConfig,
-        qdrant_url: str = "localhost:6333",
+        qdrant_url: str = None,
         collection_name: str = "documents"
     ):
         self.config = config
-        self.collection_name = collection_name
+        self._collection_name = collection_name
         
-        # 初始化Qdrant客户端
-        self.client = QdrantClient(url=qdrant_url)
+        # 使用进程安全的Qdrant管理器
+        self.qdrant_manager = get_process_safe_qdrant_manager()
         
-        # 创建集合
-        self._create_collection()
+        # 延迟创建集合，避免在主进程中初始化
+        self._collection_created = False
     
-    def _create_collection(self):
-        """创建向量集合"""
-        try:
-            # 检查集合是否存在
-            collections = self.client.get_collections().collections
-            collection_names = [col.name for col in collections]
-            
-            if self.collection_name not in collection_names:
-                # 创建新集合
-                self.client.create_collection(
-                    collection_name=self.collection_name,
-                    vectors_config=VectorParams(
-                        size=self.config.dimension,
-                        distance=Distance.COSINE if self.config.distance_metric == "cosine" else Distance.EUCLIDEAN
-                    )
-                )
-                logger.info(f"创建向量集合: {self.collection_name}")
-            else:
-                logger.info(f"向量集合已存在: {self.collection_name}")
-                
-        except Exception as e:
-            logger.error(f"创建向量集合失败: {e}")
-            raise
+    @property
+    def client(self):
+        """动态获取当前进程的客户端"""
+        return self.qdrant_manager.client
+    
+    @property
+    def collection_name(self):
+        """获取集合名称"""
+        return self._collection_name
+    
+    async def _ensure_collection(self):
+        """确保集合存在"""
+        if not self._collection_created:
+            success = await self.qdrant_manager.create_collection(
+                collection_name=self.collection_name,
+                vector_size=self.config.dimension,
+                distance=Distance.COSINE if self.config.distance_metric == "cosine" else Distance.EUCLIDEAN
+            )
+            if success:
+                self._collection_created = True
     
     async def add_documents(
         self,
@@ -140,6 +136,9 @@ class VectorStore:
         batch_size: int = 100
     ) -> List[str]:
         """添加文档到向量存储"""
+        # 确保集合存在
+        await self._ensure_collection()
+        
         try:
             logger.info(f"开始添加 {len(documents)} 个文档到向量存储")
             
@@ -190,11 +189,15 @@ class VectorStore:
                 payload=payload
             ))
         
-        # 批量插入
-        self.client.upsert(
+        # 使用进程安全的批量插入
+        success = await self.qdrant_manager.upsert_points_batch(
             collection_name=self.collection_name,
-            points=points
+            points=points,
+            batch_size=100
         )
+        
+        if not success:
+            raise Exception("批量插入失败")
         
         return point_ids
     
@@ -211,14 +214,12 @@ class VectorStore:
             if filter_conditions:
                 query_filter = self._build_filter(filter_conditions)
             
-            # 执行搜索
-            search_result = self.client.search(
+            # 使用进程安全的搜索
+            search_result = await self.qdrant_manager.search(
                 collection_name=self.collection_name,
                 query_vector=query_embedding,
                 limit=k,
-                query_filter=query_filter,
-                with_payload=True,
-                with_vectors=False
+                query_filter=filter_conditions  # 直接传递filter_conditions
             )
             
             # 转换结果
@@ -255,7 +256,9 @@ class VectorStore:
         """删除文档"""
         try:
             # 根据document_id删除
-            self.client.delete(
+            # 注意：进程安全客户端应该动态获取
+            client = self.qdrant_manager.client
+            client.delete(
                 collection_name=self.collection_name,
                 points_selector={
                     "filter": {
@@ -279,9 +282,12 @@ class VectorStore:
     def get_collection_info(self) -> Dict[str, Any]:
         """获取集合信息"""
         try:
-            info = self.client.get_collection(self.collection_name)
+            # 动态获取客户端
+            client = self.qdrant_manager.client
+            info = client.get_collection(self.collection_name)
             return {
-                "name": info.config.params.vectors.size,
+                "name": self.collection_name,
+                "vector_size": info.config.params.vectors.size,
                 "vectors_count": info.vectors_count,
                 "points_count": info.points_count,
                 "status": info.status
@@ -342,6 +348,7 @@ class VectorSearchService:
         """重排序搜索结果"""
         # TODO: 实现基于交叉编码器的重排序
         # 目前简单返回前k个结果
+        _ = query  # 消除未使用变量警告
         return results[:k]
     
     async def hybrid_search(
@@ -380,6 +387,7 @@ class VectorSearchService:
         """关键词搜索（简化实现）"""
         # TODO: 实现基于BM25的关键词搜索
         # 目前返回空结果
+        _ = query, k, filters  # 消除未使用变量警告
         return []
     
     def _fuse_results(
@@ -391,15 +399,20 @@ class VectorSearchService:
         """融合搜索结果"""
         # TODO: 实现RRF（Reciprocal Rank Fusion）算法
         # 目前简单返回向量搜索结果
+        _ = keyword_results, alpha  # 消除未使用变量警告
         return vector_results
 
 def create_vector_service(
     config: VectorConfig,
     embedding_provider: str = "openai",
-    qdrant_url: str = "localhost:6333",
+    qdrant_url: str = None,
     collection_name: str = "documents"
 ) -> VectorSearchService:
     """创建向量搜索服务"""
+    # 如果没有提供URL，从环境变量获取
+    if qdrant_url is None:
+        qdrant_url = os.getenv("QDRANT_URL", "http://rtx4080:6333")
+    
     embedding_service = EmbeddingService(config, embedding_provider)
     vector_store = VectorStore(config, qdrant_url, collection_name)
     return VectorSearchService(embedding_service, vector_store) 

@@ -67,13 +67,13 @@ class RateLimiter:
         keys = self._get_rate_limit_keys(request)
         
         # 检查所有限流规则
-        for key, limit, window in [
-            (f"{k}:minute", self.requests_per_minute, 60),
-            (f"{k}:hour", self.requests_per_hour, 3600),
-            (f"{k}:day", self.requests_per_day, 86400)
+        for suffix, limit, window in [
+            ("minute", self.requests_per_minute, 60),
+            ("hour", self.requests_per_hour, 3600),
+            ("day", self.requests_per_day, 86400)
         ]:
             for base_key in keys:
-                full_key = f"{base_key}:{key}"
+                full_key = f"{base_key}:{suffix}"
                 
                 # 使用Lua脚本原子性地检查和增加计数
                 lua_script = """

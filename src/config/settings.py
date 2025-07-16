@@ -62,16 +62,44 @@ class RedisSettings(BaseSettings):
     model_config = {"env_prefix": "REDIS_", "env_file": ".env", "extra": "ignore"}
 
 
+class MinIOSettings(BaseSettings):
+    """MinIO对象存储配置"""
+    endpoint: str = "rtx4080:9000"
+    access_key: str = "minioadmin"
+    secret_key: str = "minioadmin123"
+    secure: bool = False
+    bucket_name: str = "dpa-documents"
+    
+    model_config = {"env_prefix": "MINIO_", "env_file": ".env", "extra": "ignore"}
+
+
 class AIModelSettings(BaseSettings):
     """AI模型配置"""
-    openrouter_api_key: str
+    # OpenAI配置
+    openai_api_key: Optional[str] = None
+    openai_base_url: str = "https://api.openai.com/v1"
+    openai_organization: Optional[str] = None
+    
+    # 备选API配置
+    openrouter_api_key: Optional[str] = None
     openrouter_base_url: str = "https://openrouter.ai/api/v1"
-    default_llm_model: str = "anthropic/claude-3.5-sonnet"
+    anthropic_api_key: Optional[str] = None
+    deepseek_api_key: Optional[str] = None
+    
+    # 模型选择
+    default_llm_model: str = "gpt-4o"
     default_embedding_model: str = "text-embedding-3-large"
     embedding_dimension: int = 3072
+    
+    # 模型参数
     llm_temperature: float = 0.1
     llm_max_tokens: int = 4000
     llm_top_p: float = 0.9
+    
+    # LangSmith监控
+    langchain_tracing_v2: bool = False
+    langchain_project: str = "dpa-cognitive-v3"
+    langsmith_api_key: Optional[str] = None
     
     model_config = {"env_file": ".env", "extra": "ignore"}
 
@@ -110,17 +138,75 @@ class SecuritySettings(BaseSettings):
     model_config = {"env_prefix": "JWT_", "env_file": ".env", "extra": "ignore"}
 
 
+class CognitiveSettings(BaseSettings):
+    """认知系统配置"""
+    # 工作记忆配置
+    working_memory_limit: int = 7
+    attention_threshold: float = 0.5
+    memory_consolidation_interval: int = 300
+    
+    # S2分块配置
+    s2_min_chunk_size: int = 500
+    s2_max_chunk_size: int = 2000
+    s2_target_chunk_size: int = 1000
+    s2_overlap_size: int = 200
+    s2_semantic_threshold: float = 0.7
+    
+    # 混合检索配置
+    vector_retrieval_weight: float = 0.4
+    graph_retrieval_weight: float = 0.35
+    memory_retrieval_weight: float = 0.25
+    retrieval_top_k: int = 50
+    final_results_limit: int = 20
+    
+    # 元认知配置
+    metacognitive_enabled: bool = True
+    strategy_change_threshold: float = 0.3
+    performance_evaluation_interval: int = 60
+    confidence_threshold: float = 0.7
+    
+    # 认知策略
+    default_cognitive_strategy: str = "exploration"
+    strategy_adaptation_enabled: bool = True
+    auto_strategy_selection: bool = True
+    
+    # 学习配置
+    active_learning_enabled: bool = True
+    hypothesis_generation_enabled: bool = True
+    knowledge_gap_detection: bool = True
+    
+    model_config = {"env_file": ".env", "extra": "ignore"}
+
+
+class MemoryBankSettings(BaseSettings):
+    """记忆库配置"""
+    # Memory Bank存储
+    memory_bank_path: str = "./memory-bank"
+    dynamic_summary_update_interval: int = 300
+    max_learning_journal_entries: int = 1000
+    max_hypotheses_active: int = 50
+    
+    # RVUE循环配置
+    rvue_enabled: bool = True
+    rvue_verification_threshold: float = 0.8
+    rvue_update_frequency: int = 600
+    
+    model_config = {"env_file": ".env", "extra": "ignore"}
+
+
 class BusinessSettings(BaseSettings):
     """业务配置"""
+    # 项目限制
+    max_projects_per_user: int = 20
+    max_documents_per_project: int = 2000
+    max_questions_per_day: int = 2000
+    
+    # 传统分块配置（向后兼容）
     chunk_size: int = 1000
     chunk_overlap: int = 200
     min_chunk_size: int = 100
-    retrieval_top_k: int = 10
     retrieval_score_threshold: float = 0.7
     rerank_top_k: int = 5
-    max_projects_per_user: int = 10
-    max_documents_per_project: int = 1000
-    max_questions_per_day: int = 1000
     
     model_config = {"env_file": ".env", "extra": "ignore"}
 
@@ -146,9 +232,9 @@ class AppSettings(BaseSettings):
     
     # API配置
     api_host: str = "0.0.0.0"
-    api_port: int = 8000
+    api_port: int = 8200
     api_prefix: str = "/api/v1"
-    cors_origins: List[str] = ["http://localhost:3000", "http://127.0.0.1:3000"]
+    cors_origins: List[str] = ["http://localhost:3000", "http://127.0.0.1:3000", "http://localhost:8031", "http://127.0.0.1:8031", "http://localhost:8050", "http://127.0.0.1:8050", "http://localhost:8230", "http://127.0.0.1:8230"]
     
     # 日志配置
     log_level: str = "INFO"
@@ -172,6 +258,16 @@ class AppSettings(BaseSettings):
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8", "extra": "ignore"}
 
 
+class PathSettings:
+    """路径配置"""
+    def __init__(self, file_storage: FileStorageSettings):
+        self.upload_dir = file_storage.upload_dir
+        self.processed_dir = file_storage.processed_dir
+        self.cache_dir = file_storage.cache_dir
+        self.memory_bank = "./memory-bank"
+        self.logs_dir = "./data/logs"
+
+
 class Settings:
     """统一配置管理类"""
     
@@ -181,12 +277,16 @@ class Settings:
         self.qdrant = QdrantSettings()
         self.neo4j = Neo4jSettings()
         self.redis = RedisSettings()
+        self.minio = MinIOSettings()
         self.ai_model = AIModelSettings()
         self.file_storage = FileStorageSettings()
         self.celery = CelerySettings()
         self.security = SecuritySettings()
+        self.cognitive = CognitiveSettings()
+        self.memory_bank = MemoryBankSettings()
         self.business = BusinessSettings()
         self.monitoring = MonitoringSettings()
+        self.paths = PathSettings(self.file_storage)
     
     def create_directories(self):
         """创建必要的目录"""
@@ -194,7 +294,9 @@ class Settings:
             self.file_storage.upload_dir,
             self.file_storage.processed_dir,
             self.file_storage.cache_dir,
+            self.memory_bank.memory_bank_path,
             os.path.dirname(self.app.log_file),
+            "./data/logs",
         ]
         
         for directory in directories:
@@ -207,6 +309,10 @@ class Settings:
     @property
     def is_production(self) -> bool:
         return self.app.env == "production"
+    
+    @property
+    def debug(self) -> bool:
+        return self.app.debug
 
 
 @lru_cache()

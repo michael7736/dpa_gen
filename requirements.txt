@@ -58,6 +58,7 @@ nltk==3.8.1
 spacy==3.7.2
 transformers==4.36.2
 sentence-transformers==2.2.2
+tiktoken>=0.5.1
 
 # 网络和API
 httpx>=0.28.1
@@ -72,6 +73,9 @@ celery==5.3.4
 python-dotenv>=1.0.1
 pyyaml==6.0.1
 toml==0.10.2
+
+# 对象存储
+minio==7.2.5
 
 # 日志和监控
 structlog>=25.4.0

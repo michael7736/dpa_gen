@@ -29,11 +29,18 @@ class DocumentType(str, Enum):
 
 class ProcessingStatus(str, Enum):
     """处理状态枚举"""
-    PENDING = "pending"
-    PROCESSING = "processing"
-    COMPLETED = "completed"
-    FAILED = "failed"
-    CANCELLED = "cancelled"
+    UPLOADED = "uploaded"        # 已上传（新增）
+    PENDING = "pending"          # 待处理
+    PROCESSING = "processing"    # 处理中
+    SUMMARIZING = "summarizing"  # 正在生成摘要（新增）
+    SUMMARIZED = "summarized"    # 已生成摘要（新增）
+    INDEXING = "indexing"        # 正在索引（新增）
+    INDEXED = "indexed"          # 已索引（新增）
+    ANALYZING = "analyzing"      # 正在分析（新增）
+    ANALYZED = "analyzed"        # 已分析（新增）
+    COMPLETED = "completed"      # 已完成
+    FAILED = "failed"           # 失败
+    CANCELLED = "cancelled"     # 已取消
 
 
 class ChunkType(str, Enum):
@@ -87,8 +94,11 @@ class Document(BaseEntity):
     
     # 关系
     project = relationship("Project", back_populates="documents")
-    chunks = relationship("DocumentChunk", back_populates="document", cascade="all, delete-orphan")
+    chunks = relationship("Chunk", back_populates="document", cascade="all, delete-orphan")
     sections = relationship("DocumentSection", back_populates="document", cascade="all, delete-orphan")
+    analyses = relationship("DocumentAnalysis", back_populates="document", cascade="all, delete-orphan")
+    processing_pipelines = relationship("ProcessingPipeline", back_populates="document", cascade="all, delete-orphan")
+    # document_metadata = relationship("DocumentMetadata", back_populates="document", uselist=False, cascade="all, delete-orphan")
 
 
 class DocumentSection(BaseEntity):
@@ -121,43 +131,47 @@ class DocumentSection(BaseEntity):
     document = relationship("Document", back_populates="sections")
     parent = relationship("DocumentSection", remote_side="DocumentSection.id")
     children = relationship("DocumentSection", back_populates="parent")
-    chunks = relationship("DocumentChunk", back_populates="section")
+    # chunks = relationship("DocumentChunk", back_populates="section")  # Using Chunk from chunk.py instead
 
 
-class DocumentChunk(BaseEntity):
-    """文档块实体"""
-    __tablename__ = "document_chunks"
-    
-    # 基本信息
-    content = Column(Text, nullable=False)
-    chunk_type = Column(SQLEnum(ChunkType), default=ChunkType.PARAGRAPH)
-    
-    # 位置信息
-    chunk_index = Column(Integer, nullable=False)
-    page_number = Column(Integer, nullable=True)
-    char_start = Column(Integer, nullable=True)
-    char_end = Column(Integer, nullable=True)
-    
-    # 统计信息
-    word_count = Column(Integer, default=0)
-    token_count = Column(Integer, default=0)
-    
-    # 向量信息
-    embedding_vector = Column(ARRAY(Float), nullable=True)
-    embedding_model = Column(String(100), nullable=True)
-    
-    # 语义信息
-    semantic_similarity_score = Column(Float, nullable=True)
-    keywords = Column(ARRAY(String), default=list)
-    entities = Column(JSON, default=list)
-    
-    # 关联信息
-    document_id = Column(PG_UUID(as_uuid=True), ForeignKey("documents.id"), nullable=False)
-    section_id = Column(PG_UUID(as_uuid=True), ForeignKey("document_sections.id"), nullable=True)
-    
-    # 关系
-    document = relationship("Document", back_populates="chunks")
-    section = relationship("DocumentSection", back_populates="chunks")
+# Moved to chunk.py - using Chunk model instead
+# class DocumentChunk(BaseEntity):
+#     """文档块实体"""
+#     __tablename__ = "document_chunks"
+#     
+#     # 基本信息
+#     content = Column(Text, nullable=False)
+#     chunk_type = Column(SQLEnum(ChunkType), default=ChunkType.PARAGRAPH)
+#     
+#     # 位置信息
+#     chunk_index = Column(Integer, nullable=False)
+#     page_number = Column(Integer, nullable=True)
+#     char_start = Column(Integer, nullable=True)
+#     char_end = Column(Integer, nullable=True)
+#     
+#     # 统计信息
+#     word_count = Column(Integer, default=0)
+#     token_count = Column(Integer, default=0)
+#     
+#     # 向量信息
+#     embedding_vector = Column(ARRAY(Float), nullable=True)
+#     embedding_model = Column(String(100), nullable=True)
+#     
+#     # 语义信息
+#     semantic_similarity_score = Column(Float, nullable=True)
+#     keywords = Column(ARRAY(String), default=list)
+#     entities = Column(JSON, default=list)
+#     
+#     # 关联信息
+#     document_id = Column(PG_UUID(as_uuid=True), ForeignKey("documents.id"), nullable=False)
+#     section_id = Column(PG_UUID(as_uuid=True), ForeignKey("document_sections.id"), nullable=True)
+#     
+#     # 关系
+#     document = relationship("Document", back_populates="chunks")
+#     section = relationship("DocumentSection", back_populates="chunks")
+
+# Using Chunk from chunk.py instead
+from .chunk import Chunk as DocumentChunk
 
 
 # Pydantic模式

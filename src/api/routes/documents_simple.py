@@ -6,14 +6,18 @@
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 import uuid
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
+import asyncio
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Request
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, Field
 
 from ...database.postgresql import get_db_session
-from ...models.base import Document, Project
+from ...models.document import Document
+from ...models.project import Project
+from ...services.project_service import ProjectService
 from ...graphs.simplified_document_processor import SimplifiedDocumentProcessor
 from ...utils.logger import get_logger
+from ..middleware.auth import get_current_user
 
 logger = get_logger(__name__)
 router = APIRouter(prefix="/api/v1/documents")
@@ -21,7 +25,7 @@ router = APIRouter(prefix="/api/v1/documents")
 
 class DocumentUploadRequest(BaseModel):
     """文档上传请求"""
-    project_id: str
+    project_id: Optional[str] = Field(None, description="项目ID，如果未提供则使用默认项目")
     title: str = Field(..., min_length=1, max_length=500)
     content: str = Field(..., min_length=1)
     metadata: Optional[Dict[str, Any]] = None
@@ -58,19 +62,28 @@ processing_status = {}
 async def upload_document(
     request: DocumentUploadRequest,
     background_tasks: BackgroundTasks,
-    db: Session = Depends(get_db_session)
+    db: Session = Depends(get_db_session),
+    current_user: str = Depends(get_current_user)
 ):
     """上传并处理文档"""
     try:
-        # 验证项目存在
-        project = db.query(Project).filter(Project.id == request.project_id).first()
-        if not project:
-            raise HTTPException(status_code=404, detail="项目不存在")
+        # 如果没有提供项目ID，使用用户的默认项目
+        if not request.project_id:
+            project_service = ProjectService(db)
+            default_project = await project_service.get_or_create_default_project(uuid.UUID(current_user))
+            project_id = str(default_project.id)
+            logger.info(f"使用用户 {current_user} 的默认项目: {project_id}")
+        else:
+            project_id = request.project_id
+            # 验证项目存在
+            project = db.query(Project).filter(Project.id == project_id).first()
+            if not project:
+                raise HTTPException(status_code=404, detail="项目不存在")
         
         # 创建文档记录
         document = Document(
             id=str(uuid.uuid4()),
-            project_id=request.project_id,
+            project_id=project_id,
             title=request.title,
             content=request.content,
             status="processing",
